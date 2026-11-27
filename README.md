@@ -23,9 +23,33 @@ See [Concepts](docs/concepts.md) for the terms.
 
 ## Status
 
-This project is in early development. Nothing works yet, and there is no release.
+This project is in early development. There is no release.
+
+The lookup of candidates exists. It finds the users of the home realms that an identifier matches.
+No login works yet, because no authenticator uses the lookup.
 
 The [open issues](https://github.com/exoego/keycloak-cross-realm-login/issues) show what is planned.
+
+## Configuration
+
+The extension has its own SPI, `cross-realm-login`, with one provider, `default`.
+It has one setting.
+
+| Setting | Meaning |
+|---|---|
+| `excluded-realm-ids` | IDs of realms that are never searched, separated by commas. Blank entries are ignored. |
+
+The lookup searches every enabled realm.
+It skips the `master` realm, the entry realm, and the realms of this setting.
+
+```sh
+--spi-cross-realm-login--default--excluded-realm-ids=5f0c3a52-8b1e-4d2a-9c47-2e6d1b0a7f31,9a1d7c3e-4b62-4f0a-8e15-6c2b9d0f3a74
+KC_SPI_CROSS_REALM_LOGIN__DEFAULT__EXCLUDED_REALM_IDS=5f0c3a52-8b1e-4d2a-9c47-2e6d1b0a7f31,9a1d7c3e-4b62-4f0a-8e15-6c2b9d0f3a74
+```
+
+The setting takes IDs and not names, because the ID stays when a realm is renamed.
+
+The lookup reads the Keycloak database. A user of a user federation is found only when Keycloak imported it, and this is not tested.
 
 ## Supported versions
 
