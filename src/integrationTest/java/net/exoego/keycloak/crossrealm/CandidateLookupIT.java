@@ -1,6 +1,8 @@
 package net.exoego.keycloak.crossrealm;
 
 import java.util.List;
+import java.util.UUID;
+import java.util.function.Consumer;
 
 import jakarta.ws.rs.core.Response;
 
@@ -16,8 +18,7 @@ import org.keycloak.representations.idm.UserRepresentation;
 import net.exoego.keycloak.crossrealm.CandidateEndpoint.Found;
 
 import static net.exoego.keycloak.crossrealm.KeycloakEnvironment.EXCLUDED_REALM_ID;
-import static net.exoego.keycloak.crossrealm.TestRealms.realm;
-import static net.exoego.keycloak.crossrealm.TestRealms.withRealm;
+import static net.exoego.keycloak.crossrealm.KeycloakEnvironment.KEYCLOAK;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -320,6 +321,10 @@ class CandidateLookupIT {
         assertTrue(CandidateEndpoint.candidate(ENTRY, realmId, "no-such-user").isEmpty());
     }
 
+    private static RealmResource realm(String name) {
+        return KEYCLOAK.getKeycloakAdminClient().realm(name);
+    }
+
     private static String userId(String realm, String username) {
         return realm(realm).users().searchByUsername(username, true).get(0).getId();
     }
@@ -371,5 +376,21 @@ class CandidateLookupIT {
         user.setEmailVerified(verified);
         user.setEnabled(true);
         return user;
+    }
+
+    // The realm has a random name, so tests do not see each other's users.
+    private static void withRealm(Consumer<RealmResource> test, boolean allowDuplicateEmails) {
+        String name = "tmp-" + UUID.randomUUID();
+        RealmRepresentation rep = new RealmRepresentation();
+        rep.setRealm(name);
+        rep.setEnabled(true);
+        rep.setDuplicateEmailsAllowed(allowDuplicateEmails);
+        rep.setLoginWithEmailAllowed(false);
+        KEYCLOAK.getKeycloakAdminClient().realms().create(rep);
+        try {
+            test.accept(realm(name));
+        } finally {
+            realm(name).remove();
+        }
     }
 }

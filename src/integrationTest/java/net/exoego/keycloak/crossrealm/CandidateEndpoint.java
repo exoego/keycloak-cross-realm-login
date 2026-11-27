@@ -19,9 +19,6 @@ final class CandidateEndpoint {
     record Found(String realmName, String realmId, String userId, String username, boolean enabled) {
     }
 
-    record Checked(String realmName, boolean valid) {
-    }
-
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final HttpClient HTTP = HttpClient.newHttpClient();
 
@@ -35,28 +32,6 @@ final class CandidateEndpoint {
     /** The lookup gets an entry realm that is not the context realm. */
     static List<Found> candidatesInContext(String contextRealm, String entryRealm, String identifier) {
         return list(contextRealm, "candidates?identifier=" + encode(identifier) + "&entryRealm=" + encode(entryRealm));
-    }
-
-    /** Checks the password for every candidate of the identifier in one request. */
-    static List<Checked> checkPassword(String entryRealm, String identifier, String password) {
-        return post(entryRealm, "check-password", identifier, password);
-    }
-
-    private static List<Checked> post(String entryRealm, String path, String identifier, String password) {
-        URI uri = URI.create(KeycloakEnvironment.realmUrl(entryRealm) + "/cross-realm-test/" + path);
-        HttpRequest request = HttpRequest.newBuilder(uri)
-                .header("Content-Type", "application/x-www-form-urlencoded")
-                .POST(HttpRequest.BodyPublishers.ofString(
-                        "identifier=" + encode(identifier) + "&password=" + encode(password)))
-                .build();
-        HttpResponse<String> response = send(request);
-        check(response);
-        try {
-            return JSON.readValue(response.body(), new TypeReference<>() {
-            });
-        } catch (IOException e) {
-            throw new IllegalStateException(response.body(), e);
-        }
     }
 
     private static List<Found> list(String contextRealm, String pathAndQuery) {
@@ -100,12 +75,8 @@ final class CandidateEndpoint {
 
     private static HttpResponse<String> get(String entryRealm, String pathAndQuery) {
         URI uri = URI.create(KeycloakEnvironment.realmUrl(entryRealm) + "/cross-realm-test/" + pathAndQuery);
-        return send(HttpRequest.newBuilder(uri).build());
-    }
-
-    private static HttpResponse<String> send(HttpRequest request) {
         try {
-            return HTTP.send(request, HttpResponse.BodyHandlers.ofString());
+            return HTTP.send(HttpRequest.newBuilder(uri).build(), HttpResponse.BodyHandlers.ofString());
         } catch (IOException e) {
             throw new IllegalStateException(e);
         } catch (InterruptedException e) {
