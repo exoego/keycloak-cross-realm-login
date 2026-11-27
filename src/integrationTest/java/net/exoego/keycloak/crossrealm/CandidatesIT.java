@@ -197,7 +197,7 @@ class CandidatesIT {
     @Test
     void doesNotShowAUserOfTheEntryRealm() {
         try (TempEntryRealm entry = TempEntryRealm.withUserStorage()) {
-            String id = entry.addUser("local", "the-password", true);
+            String id = entry.addUser("local-" + UUID.randomUUID(), "the-password", true);
 
             assertNotFound(entry.name(), proxyId(entry.name(), entry.id(), id));
             assertEquals("bob", show(entry.name(), proxyId(entry.name(), realmId("home-a"), userId("home-a", "bob")))
