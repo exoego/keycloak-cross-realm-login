@@ -3,7 +3,10 @@ package net.exoego.keycloak.crossrealm.testprovider;
 import java.util.List;
 import java.util.Optional;
 
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.FormParam;
 import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
@@ -12,9 +15,11 @@ import jakarta.ws.rs.core.Response;
 
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
+import org.keycloak.models.UserCredentialModel;
 
 import net.exoego.keycloak.crossrealm.Candidate;
 import net.exoego.keycloak.crossrealm.CandidateLookup;
+import net.exoego.keycloak.crossrealm.HomeRealmCredentials;
 
 @Produces(MediaType.APPLICATION_JSON)
 final class CandidateTestEndpoint {
@@ -24,6 +29,9 @@ final class CandidateTestEndpoint {
             return new Found(candidate.realm().getName(), candidate.realm().getId(), candidate.user().getId(),
                     candidate.user().getUsername(), candidate.user().isEnabled());
         }
+    }
+
+    record Checked(String realmName, boolean valid) {
     }
 
     private final KeycloakSession session;
@@ -59,6 +67,20 @@ final class CandidateTestEndpoint {
         // Not 404, which Keycloak also answers for a wrong realm or path.
         return candidate.map(found -> Response.ok(Found.of(found)).build())
                 .orElseGet(() -> Response.noContent().build());
+    }
+
+    @POST
+    @Path("check-password")
+    @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+    public List<Checked> checkPassword(@FormParam("identifier") String identifier,
+            @FormParam("password") String password) {
+        RealmModel entryRealm = session.getContext().getRealm();
+        List<Checked> checked = lookup().findByIdentifier(entryRealm, identifier).stream()
+                .map(candidate -> new Checked(candidate.realm().getName(), HomeRealmCredentials.isValid(session,
+                        candidate, UserCredentialModel.password(password))))
+                .toList();
+        checkContextRealm(entryRealm);
+        return checked;
     }
 
     private void checkContextRealm(RealmModel before) {
