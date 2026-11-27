@@ -9,6 +9,18 @@
   "labels": [
     "chore"
   ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Versions in the version catalog that the Gradle manager cannot read, marked with a renovate comment on the line above",
+      "managerFilePatterns": [
+        "/^gradle/libs\\.versions\\.toml$/"
+      ],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>[a-z-]+) depName=(?<depName>\\S+)\\n[a-z-]+ = \"(?<currentValue>[^\"]+)\""
+      ]
+    }
+  ],
   "packageRules": [
     {
       "description": "Keycloak changes its internal APIs between minor versions, so check each update by hand",

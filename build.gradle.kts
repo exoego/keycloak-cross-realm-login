@@ -1,3 +1,5 @@
+import java.time.Duration
+
 plugins {
     `java-library`
     jacoco
@@ -41,6 +43,11 @@ dependencies {
     testImplementation(libs.bundles.keycloak.provided)
 }
 
+// An empty value, as from a CI matrix row without it, means the version of the catalog.
+val testKeycloakVersion = providers.gradleProperty("testKeycloakVersion")
+    .filter { it.isNotBlank() }
+    .orElse(libs.versions.keycloak)
+
 testing {
     suites {
         named<JvmTestSuite>("test") {
@@ -50,10 +57,23 @@ testing {
         register<JvmTestSuite>("integrationTest") {
             useJUnitJupiter(libs.versions.junit)
             dependencies {
+                implementation(libs.testcontainers.keycloak)
+                implementation(libs.testcontainers.postgresql)
                 implementation(platform(libs.keycloak.parent))
+                implementation(libs.jackson.databind)
+                implementation(libs.jsoup)
+                runtimeOnly(libs.slf4j.simple)
             }
             targets.all {
                 testTask.configure {
+                    // The tests run the jar, so a new jar must run them again.
+                    inputs.files(tasks.jar)
+                    systemProperty("keycloak.version", testKeycloakVersion.get())
+                    systemProperty("postgres.version", libs.versions.postgres.image.get())
+                    systemProperty("provider.jar", tasks.jar.get().archiveFile.get().asFile.absolutePath)
+                    // A hung container call must fail the build, not block it.
+                    // The CI jobs that run the tests have a longer limit, so this one fails first and the report shows why.
+                    timeout.set(Duration.ofMinutes(30))
                     shouldRunAfter(tasks.test)
                 }
             }
