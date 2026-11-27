@@ -20,6 +20,7 @@ jboss-logging = { module = "org.jboss.logging:jboss-logging" }
 
 testcontainers-keycloak = { module = "com.github.dasniko:testcontainers-keycloak", version = "4.4.0" }
 testcontainers-postgresql = { module = "org.testcontainers:testcontainers-postgresql", version = "2.0.5" }
+jacoco-core = { module = "org.jacoco:org.jacoco.core", version.ref = "jacoco" }
 slf4j-simple = { module = "org.slf4j:slf4j-simple", version = "2.0.20" }
 # The tests drive its bundled Chromium. The Gradle task installBrowser downloads that browser.
 playwright = { module = "com.microsoft.playwright:playwright", version = "1.65.1" }

@@ -45,7 +45,11 @@ jacoco {
     toolVersion = libs.versions.jacoco.get()
 }
 
+// The JaCoCo agent for the JVM of Keycloak.
+val jacocoContainerAgent = configurations.create("jacocoContainerAgent")
+
 dependencies {
+    jacocoContainerAgent("org.jacoco:org.jacoco.agent:${libs.versions.jacoco.get()}:runtime")
     errorprone(libs.errorprone.core)
     compileOnly(platform(libs.keycloak.parent))
     compileOnly(libs.bundles.keycloak.provided)
@@ -92,6 +96,7 @@ testing {
                 implementation(platform(libs.keycloak.parent))
                 implementation(libs.jackson.databind)
                 implementation(libs.playwright)
+                implementation(libs.jacoco.core)
                 runtimeOnly(libs.slf4j.simple)
             }
             targets.all {
@@ -110,6 +115,23 @@ testing {
                     // A hung container call must fail the build, not block it.
                     // The CI jobs that run the tests have a longer limit, so this one fails first and the report shows why.
                     timeout.set(Duration.ofMinutes(30))
+                    // The provider runs in the JVM of Keycloak, so the JaCoCo agent goes into that container.
+                    val agent = jacocoContainerAgent
+                    val coverageDir = layout.buildDirectory.dir("jacoco/keycloak")
+                    val loadedClasses = layout.buildDirectory.dir("jacoco-classes/keycloak")
+                    inputs.files(agent)
+                    outputs.dir(coverageDir)
+                    outputs.dir(loadedClasses)
+                    doFirst {
+                        // A rerun must not append to old data.
+                        for (dir in listOf(coverageDir, loadedClasses)) {
+                            dir.get().asFile.deleteRecursively()
+                            dir.get().asFile.mkdirs()
+                        }
+                        systemProperty("jacoco.agent", agent.singleFile.absolutePath)
+                        systemProperty("jacoco.dir", coverageDir.get().asFile.absolutePath)
+                        systemProperty("jacoco.classes", loadedClasses.get().asFile.absolutePath)
+                    }
                     shouldRunAfter(tasks.test)
                 }
             }
@@ -130,9 +152,45 @@ tasks.withType<Test>().configureEach {
 }
 
 // One report for the unit tests and for the integration tests.
+// The second part comes out of the Keycloak container, where the provider really runs.
+val coverageData = fileTree(layout.buildDirectory.dir("jacoco")) { include("**/*.exec") }
+
+// Keycloak can rewrite a class when it builds the server. Coverage data fits only the class it was
+// measured on, so the report takes each class as Keycloak loaded it, and the compiled class otherwise.
+val coverageClasses = tasks.register("coverageClasses") {
+    mustRunAfter(tasks.named("integrationTest"))
+    val compiled = sourceSets.main.get().output.classesDirs
+    val loaded = layout.buildDirectory.dir("jacoco-classes/keycloak")
+    val target = layout.buildDirectory.dir("jacoco-classes/report")
+    inputs.files(compiled)
+    inputs.files(loaded)
+    outputs.dir(target)
+    doLast {
+        val out = target.get().asFile
+        out.deleteRecursively()
+        compiled.forEach { dir -> if (dir.exists()) dir.copyRecursively(out, overwrite = true) }
+        // The agent names a file "Name.<id>.class". The same class can be written twice, as compiled
+        // and as rewritten. The rewritten one is the one that ran.
+        val dumped = Regex("""(.+)\.[0-9a-f]{16}\.class""")
+        val root = loaded.get().asFile
+        root.walkTopDown().filter { it.isFile }.forEach { file ->
+            val name = dumped.matchEntire(file.name)?.groupValues?.get(1) ?: return@forEach
+            val place = File(out, file.relativeTo(root).parentFile.path + "/" + name + ".class")
+            val original = compiled.map { File(it, place.relativeTo(out).path) }.firstOrNull { it.exists() }
+            if (original == null || !original.readBytes().contentEquals(file.readBytes())) {
+                place.parentFile.mkdirs()
+                file.copyTo(place, overwrite = true)
+            }
+        }
+    }
+}
+
 tasks.jacocoTestReport {
     mustRunAfter(tasks.test, tasks.named("integrationTest"))
-    executionData.setFrom(fileTree(layout.buildDirectory.dir("jacoco")) { include("**/*.exec") })
+    dependsOn(coverageClasses)
+    executionData.setFrom(coverageData)
+    classDirectories.setFrom(layout.buildDirectory.dir("jacoco-classes/report"))
+    sourceDirectories.setFrom(sourceSets.main.get().allJava.srcDirs)
     reports {
         xml.required.set(true)
         html.required.set(true)
