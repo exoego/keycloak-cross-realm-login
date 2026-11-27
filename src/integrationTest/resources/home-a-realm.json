@@ -37,7 +37,8 @@
       "username": "dave",
       "email": "dave@home-a.example.com",
       "emailVerified": false,
-      "enabled": true
+      "enabled": true,
+      "credentials": [{ "type": "password", "value": "dave-password" }]
     }
   ]
 }

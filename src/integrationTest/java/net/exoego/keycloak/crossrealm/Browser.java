@@ -75,6 +75,17 @@ final class Browser implements AutoCloseable {
         return result();
     }
 
+    /** Submits the login form without the username field, as a client that is not a browser can. */
+    LoginResult loginWithoutUsername(String realm, String clientId, String password) {
+        open(realm, clientId);
+        waitForEnd(LOGIN_FORM + ", " + ERROR_SELECTOR);
+        page.locator("#username").evaluate("field => field.remove()");
+        page.locator("#password").fill(password);
+        page.locator("#kc-login").click();
+        waitForEnd(ERROR_SELECTOR);
+        return result();
+    }
+
     /**
      * Logs in with kc_action=UPDATE_PASSWORD, then types the new password twice on the page that Keycloak shows.
      * The result is the page where the login ends.

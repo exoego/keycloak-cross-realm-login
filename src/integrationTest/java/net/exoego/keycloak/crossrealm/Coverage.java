@@ -38,10 +38,8 @@ final class Coverage {
         return keycloak
                 .withCopyFileToContainer(MountableFile.forHostPath(AGENT), "/opt/jacoco/agent.jar")
                 .withFileSystemBind(classes.getAbsolutePath(), "/opt/jacoco/classes", BindMode.READ_WRITE)
-                // The test provider is not part of the product.
                 .withEnv("JAVA_OPTS_APPEND", "-javaagent:/opt/jacoco/agent.jar=output=tcpserver,address=*,port="
                         + PORT + ",includes=net.exoego.keycloak.crossrealm.*"
-                        + ",excludes=net.exoego.keycloak.crossrealm.testprovider.*"
                         + ",classdumpdir=/opt/jacoco/classes");
     }
 
