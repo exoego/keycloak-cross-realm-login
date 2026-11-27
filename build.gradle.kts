@@ -65,6 +65,14 @@ tasks.check {
     dependsOn(testing.suites.named("integrationTest"))
 }
 
+// The tests run on this JDK. The compiler stays on JDK 21.
+val testJavaVersion = providers.gradleProperty("testJavaVersion").orElse("21")
+tasks.withType<Test>().configureEach {
+    javaLauncher.set(javaToolchains.launcherFor {
+        languageVersion.set(testJavaVersion.map { JavaLanguageVersion.of(it) })
+    })
+}
+
 // One report for the unit tests and for the integration tests.
 tasks.jacocoTestReport {
     mustRunAfter(tasks.test, tasks.named("integrationTest"))
