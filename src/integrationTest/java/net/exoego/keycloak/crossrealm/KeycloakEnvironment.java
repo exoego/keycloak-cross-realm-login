@@ -29,7 +29,7 @@ final class KeycloakEnvironment {
             .withUsername("keycloak")
             .withPassword("keycloak");
 
-    static final KeycloakContainer KEYCLOAK = new KeycloakContainer("quay.io/keycloak/keycloak:" + KEYCLOAK_VERSION)
+    static final KeycloakContainer KEYCLOAK = Coverage.measure(Coverage.keycloak("quay.io/keycloak/keycloak:" + KEYCLOAK_VERSION))
             .withNetwork(NETWORK)
             .withProviderLibsFrom(List.of(PROVIDER_JAR, TEST_PROVIDER_JAR))
             .withRealmImportFiles("/entry-realm.json", "/home-a-realm.json", "/home-b-realm.json",
@@ -44,6 +44,9 @@ final class KeycloakEnvironment {
     static {
         POSTGRES.start();
         KEYCLOAK.start();
+        // Testcontainers kills the container after the JVM exits, so the data is read before that.
+        // The hook also runs when a test fails.
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> Coverage.save(KEYCLOAK)));
     }
 
     private KeycloakEnvironment() {

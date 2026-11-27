@@ -47,6 +47,8 @@ Write a comment only for something the code cannot say, such as a reason.
 
 `check` runs the unit tests and the integration tests.
 It also writes one coverage report for both, in `build/reports/jacoco/test`.
+The provider runs in the JVM of Keycloak, so the integration tests put the JaCoCo agent into the container and read its data out.
+The report counts only the main jar, not the test provider.
 
 The integration tests start Keycloak and PostgreSQL in containers, so they need Docker.
 They log in with headless Chromium, driven by Playwright.
