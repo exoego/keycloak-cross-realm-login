@@ -19,6 +19,8 @@ This is the plan. None of it works today.
 4. The client starts a login at the home realm. The home realm uses the entry realm as an identity provider and shows no page.
 5. The home realm removes the session of the entry realm.
 
+See [Concepts](docs/concepts.md) for the terms.
+
 ## Status
 
 This project is in early development. Nothing works yet, and there is no release.
