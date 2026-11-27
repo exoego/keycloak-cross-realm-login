@@ -10,7 +10,6 @@ This project is in early development. The terms describe the plan, and they can 
 |---|---|
 | Entry realm | The realm that every user logs in to first. It stores no user and no credential. |
 | Home realm | A realm that stores users and their credentials. There is usually one for each tenant. |
-| Tenant | The organization that one home realm serves. |
 | Context realm | The realm of the current request in Keycloak. Keycloak reads credentials with the context realm, not with the realm of the user. During the first step, the context realm is the entry realm. So the extension switches it to the home realm for the check, and puts it back. |
 
 ## Users
