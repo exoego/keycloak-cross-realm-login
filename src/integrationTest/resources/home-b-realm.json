@@ -1,0 +1,22 @@
+{
+  "realm": "home-b",
+  "displayName": "Home B",
+  "enabled": true,
+  "clients": [
+    {
+      "clientId": "test-client",
+      "publicClient": true,
+      "redirectUris": ["http://localhost:3000/callback"]
+    }
+  ],
+  "users": [
+    {
+      "username": "alice",
+      "email": "alice@home-b.example.com",
+      "firstName": "Alice",
+      "lastName": "Baker",
+      "enabled": true,
+      "credentials": [{ "type": "password", "value": "alice-password-b" }]
+    }
+  ]
+}

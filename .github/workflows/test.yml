@@ -13,8 +13,9 @@ concurrency:
 
 jobs:
   test:
-    name: Test (Java ${{ matrix.java }})
-    timeout-minutes: 20
+    name: Test (Java ${{ matrix.java }}${{ matrix.keycloak && format(', Keycloak {0}', matrix.keycloak) || '' }})
+    # Longer than the timeout of the integration tests in build.gradle.kts, so that one fails first.
+    timeout-minutes: 40
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -24,6 +25,13 @@ jobs:
         java:
           - 21
           - 25
+        # Empty means the Keycloak version of the catalog. It keeps the row below from merging into the Java 21 row.
+        keycloak:
+          - ''
+        # The oldest supported Keycloak. The provider runs in the JDK of the Keycloak image, so one test JDK is enough.
+        include:
+          - java: 21
+            keycloak: 26.8.0
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -43,15 +51,18 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
 
+      # The integration tests start Keycloak and PostgreSQL with Testcontainers, using the Docker of the runner.
       - name: Run Tests
-        run: ./gradlew check -PtestJavaVersion=${{ matrix.java }}
+        env:
+          KEYCLOAK_VERSION: ${{ matrix.keycloak }}
+        run: ./gradlew check -PtestJavaVersion=${{ matrix.java }} -PtestKeycloakVersion="$KEYCLOAK_VERSION"
 
       # One row is enough. Every row measures the same tests.
       # The token keeps others from uploading fake numbers for main. A pull request from a fork gets
       # no secret. The action then uploads with no token, which Codecov allows for a fork of a public
       # repository. A failed upload must not fail the tests.
       - name: Upload coverage to Codecov
-        if: matrix.java == 21
+        if: matrix.java == 21 && matrix.keycloak == ''
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}

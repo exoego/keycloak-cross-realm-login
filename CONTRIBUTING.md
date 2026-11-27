@@ -48,5 +48,15 @@ Write a comment only for something the code cannot say, such as a reason.
 `check` runs the unit tests and the integration tests.
 It also writes one coverage report for both, in `build/reports/jacoco/test`.
 
+The integration tests start Keycloak and PostgreSQL in containers, so they need Docker.
+
+To run the integration tests against another version of Keycloak, set `testKeycloakVersion`.
+
+```sh
+./gradlew integrationTest -PtestKeycloakVersion=26.8.0
+```
+
+Without it, the tests use the version in `gradle/libs.versions.toml`.
+
 The compiler runs with every warning turned on, and with [Error Prone](https://errorprone.info/).
 A warning fails the build. Fix the cause. When a warning is wrong, use `@SuppressWarnings` with the name of the check, and say why in a comment.

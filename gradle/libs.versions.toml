@@ -16,6 +16,14 @@ keycloak-model-storage-private = { module = "org.keycloak:keycloak-model-storage
 # The version comes from the Keycloak parent POM.
 jboss-logging = { module = "org.jboss.logging:jboss-logging" }
 
+testcontainers-keycloak = { module = "com.github.dasniko:testcontainers-keycloak", version = "4.4.0" }
+testcontainers-postgresql = { module = "org.testcontainers:testcontainers-postgresql", version = "2.0.5" }
+slf4j-simple = { module = "org.slf4j:slf4j-simple", version = "2.0.20" }
+# The test client reads the login page and the ID token.
+jsoup = { module = "org.jsoup:jsoup", version = "1.24.1" }
+# The version comes from the Keycloak parent POM.
+jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind" }
+
 errorprone-core = { module = "com.google.errorprone:error_prone_core", version = "2.53.0" }
 
 [bundles]
