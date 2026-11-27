@@ -11,7 +11,7 @@ No endpoint answers which realm a username belongs to before the login succeeds.
 The *entry realm* is the realm that every user logs in to first. It stores no user and no credential.
 A *home realm* stores users and their credentials. There is usually one for each tenant.
 
-This is the plan. None of it works today.
+Steps 1 and 2 work today. The rest is the plan.
 
 1. The user logs in at the entry realm with a password or a passkey.
 2. The extension checks the credential against the home realms.
@@ -25,8 +25,8 @@ See [Concepts](docs/concepts.md) for the terms.
 
 This project is in early development. There is no release.
 
-The lookup of candidates exists. It finds the users of the home realms that an identifier matches.
-No login works yet, because no authenticator uses the lookup.
+A user can log in at the entry realm with a password.
+The client cannot yet go on to the home realm.
 
 The [open issues](https://github.com/exoego/keycloak-cross-realm-login/issues) show what is planned.
 

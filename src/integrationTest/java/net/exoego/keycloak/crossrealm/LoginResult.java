@@ -6,11 +6,13 @@ final class LoginResult {
     private final String code;
     private final boolean loginForm;
     private final String error;
+    private final String formShape;
 
-    LoginResult(String code, boolean loginForm, String error) {
+    LoginResult(String code, boolean loginForm, String error, String formShape) {
         this.code = code;
         this.loginForm = loginForm;
         this.error = error;
+        this.formShape = formShape;
     }
 
     /** The authorization code. Fails the test when the login ended on a page. */
@@ -28,5 +30,10 @@ final class LoginResult {
     /** The error text of the login form or of the error page. It is empty when the page shows none. */
     String error() {
         return error;
+    }
+
+    /** The markup of the login form without the values that change for each request. It is empty without a form. */
+    String formShape() {
+        return formShape;
     }
 }
