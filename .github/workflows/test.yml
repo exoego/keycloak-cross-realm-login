@@ -51,6 +51,10 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
 
+      # The integration tests log in with Chromium from Playwright. This installs it and its system libraries.
+      - name: Install the browser
+        run: ./gradlew installBrowser -PplaywrightDeps
+
       # The integration tests start Keycloak and PostgreSQL with Testcontainers, using the Docker of the runner.
       - name: Run Tests
         env:

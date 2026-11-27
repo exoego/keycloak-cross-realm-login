@@ -48,6 +48,23 @@ val testKeycloakVersion = providers.gradleProperty("testKeycloakVersion")
     .filter { it.isNotBlank() }
     .orElse(libs.versions.keycloak)
 
+// The CLI of Playwright is in the same jar as its API.
+val playwrightCli by configurations.creating
+dependencies {
+    playwrightCli(libs.playwright)
+}
+
+// Quick when the browser is already there. The CI workflow sets playwrightDeps to install the system libraries too.
+val installBrowser by tasks.registering(JavaExec::class) {
+    classpath = playwrightCli
+    mainClass.set("com.microsoft.playwright.CLI")
+    args("install", "--only-shell")
+    if (providers.gradleProperty("playwrightDeps").isPresent) {
+        args("--with-deps")
+    }
+    args("chromium")
+}
+
 testing {
     suites {
         named<JvmTestSuite>("test") {
@@ -61,7 +78,7 @@ testing {
                 implementation(libs.testcontainers.postgresql)
                 implementation(platform(libs.keycloak.parent))
                 implementation(libs.jackson.databind)
-                implementation(libs.jsoup)
+                implementation(libs.playwright)
                 runtimeOnly(libs.slf4j.simple)
             }
             targets.all {
@@ -70,6 +87,11 @@ testing {
                     inputs.files(tasks.jar)
                     systemProperty("keycloak.version", testKeycloakVersion.get())
                     systemProperty("postgres.version", libs.versions.postgres.image.get())
+                    // The installBrowser task is the one place that downloads the browser.
+                    environment("PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD", "1")
+                    dependsOn(installBrowser)
+                    // Shows the browser window while debugging. Run with -Pheaded.
+                    systemProperty("browser.headed", providers.gradleProperty("headed").isPresent)
                     systemProperty("provider.jar", tasks.jar.get().archiveFile.get().asFile.absolutePath)
                     // A hung container call must fail the build, not block it.
                     // The CI jobs that run the tests have a longer limit, so this one fails first and the report shows why.

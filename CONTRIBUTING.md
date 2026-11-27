@@ -49,6 +49,16 @@ Write a comment only for something the code cannot say, such as a reason.
 It also writes one coverage report for both, in `build/reports/jacoco/test`.
 
 The integration tests start Keycloak and PostgreSQL in containers, so they need Docker.
+They log in with headless Chromium, driven by Playwright.
+The browser runs on your machine, not in a container.
+The first run downloads Chromium, about 100 MB.
+The Gradle task `installBrowser` does it, and it is quick when the browser is already there.
+
+To see the browser while you debug, add `-Pheaded`.
+
+```sh
+./gradlew integrationTest -Pheaded
+```
 
 To run the integration tests against another version of Keycloak, set `testKeycloakVersion`.
 
