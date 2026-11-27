@@ -14,7 +14,6 @@ import jakarta.persistence.EntityManager;
 
 import org.keycloak.Config;
 import org.keycloak.connections.jpa.JpaConnectionProvider;
-import org.keycloak.models.KeycloakContext;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
@@ -139,16 +138,9 @@ final class DefaultCandidateLookup implements CandidateLookup {
         return user != null && realm.getId().equals(user.getRealmId());
     }
 
+    // Keycloak reads rules for the user, such as a disabled organization, from the context realm.
     private UserModel loadUser(RealmModel realm, String userId) {
-        KeycloakContext context = session.getContext();
-        RealmModel contextRealm = context.getRealm();
-        // Keycloak reads rules for the user, such as a disabled organization, from the context realm.
-        context.setRealm(realm);
-        try {
-            return session.users().getUserById(realm, userId);
-        } finally {
-            context.setRealm(contextRealm);
-        }
+        return HomeRealmContext.call(session, realm, () -> session.users().getUserById(realm, userId));
     }
 
     private EntityManager entityManager() {

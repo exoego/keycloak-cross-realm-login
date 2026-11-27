@@ -55,6 +55,7 @@ dependencies {
     compileOnly(libs.bundles.keycloak.provided)
     testImplementation(platform(libs.keycloak.parent))
     testImplementation(libs.bundles.keycloak.provided)
+    testImplementation(libs.archunit)
     "testProviderCompileOnly"(platform(libs.keycloak.parent))
     "testProviderCompileOnly"(libs.bundles.keycloak.provided)
     "testProviderCompileOnly"(sourceSets.main.get().output)
