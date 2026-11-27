@@ -19,6 +19,11 @@ class SettingsTest {
     }
 
     @Test
+    void trimsAFullWidthSpace() {
+        assertEquals(Set.of("a", "b"), Settings.of("a,\u3000b\u3000,\u3000").excludedRealmIds());
+    }
+
+    @Test
     void excludesNoRealmWithoutTheSetting() {
         assertEquals(Set.of(), Settings.of(null).excludedRealmIds());
         assertEquals(Set.of(), Settings.of("").excludedRealmIds());

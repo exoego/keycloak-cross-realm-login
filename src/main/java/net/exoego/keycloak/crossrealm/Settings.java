@@ -13,7 +13,8 @@ record Settings(Set<String> excludedRealmIds) {
 
     static Settings of(String excludedRealmIds) {
         Set<String> excluded = Arrays.stream((excludedRealmIds == null ? "" : excludedRealmIds).split(","))
-                .map(String::trim)
+                // Unlike trim, this also removes a full-width space.
+                .map(String::strip)
                 .filter(id -> !id.isEmpty())
                 .collect(Collectors.toUnmodifiableSet());
         return new Settings(excluded);

@@ -14,9 +14,11 @@ import jakarta.persistence.EntityManager;
 
 import org.keycloak.Config;
 import org.keycloak.connections.jpa.JpaConnectionProvider;
+import org.keycloak.models.KeycloakContext;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
+import org.keycloak.models.jpa.entities.UserEntity;
 import org.keycloak.models.utils.KeycloakModelUtils;
 import org.keycloak.services.validation.Validation;
 
@@ -24,15 +26,17 @@ final class DefaultCandidateLookup implements CandidateLookup {
 
     // The join lets the database probe the unique index on (REALM_ID, USERNAME) once for each realm.
     // USER_ENTITY has no index on USERNAME alone.
-    private static final String BY_USERNAME = "select u.realmId, u.id, u.emailVerified from UserEntity u, RealmEntity r"
+    private static final String BY_USERNAME = "select u.realmId, u.id, u.username from UserEntity u, RealmEntity r"
             + " where u.realmId = r.id and u.username = :identifier and u.serviceAccountClientLink is null";
-    // IDX_USER_EMAIL serves this one. The verified flag is read here, not filtered,
-    // because a direct login picks the user by email first, verified or not.
-    private static final String BY_EMAIL = "select u.realmId, u.id, u.emailVerified from UserEntity u, RealmEntity r"
-            + " where u.realmId = r.id and u.email = :identifier and u.serviceAccountClientLink is null"
+    // IDX_USER_EMAIL serves this one. The verified flag and the service account link are read here, not filtered,
+    // because a direct login picks the user by email first, whoever it is.
+    private static final String BY_EMAIL = "select u.realmId, u.id, u.email, u.emailVerified, u.serviceAccountClientLink"
+            + " from UserEntity u, RealmEntity r"
+            + " where u.realmId = r.id and u.email = :identifier"
             + " and r.loginWithEmailAllowed = true";
-    private static final String SEARCHED_REALM = " and r.enabled = true and r.name <> :master";
-    private static final String NOT_EXCLUDED = " and r.id not in :excludedIds";
+    // The excluded IDs always hold the entry realm, so the list is never empty.
+    private static final String SEARCHED_REALM = " and r.enabled = true and r.name <> :master"
+            + " and r.id not in :excludedIds";
 
     private final KeycloakSession session;
     private final Settings settings;
@@ -54,26 +58,45 @@ final class DefaultCandidateLookup implements CandidateLookup {
         }
         Set<String> excludedIds = excludedIds(entryRealm);
 
-        // Keycloak looks for the email address first, and for the username only when no user has that address.
         Map<String, List<Object[]>> byEmail = value.indexOf('@') == -1
                 ? Map.of() : byRealm(query(BY_EMAIL, value, excludedIds));
         Map<String, List<Object[]>> byUsername = byRealm(query(BY_USERNAME, value, excludedIds));
 
+        Set<String> realmIds = new HashSet<>(byUsername.keySet());
+        realmIds.addAll(byEmail.keySet());
         List<Candidate> candidates = new ArrayList<>();
-        for (Map.Entry<String, List<Object[]>> entry : byUsername.entrySet()) {
-            if (!byEmail.containsKey(entry.getKey())) {
-                addCandidate(candidates, entry.getKey(), (String) entry.getValue().get(0)[1]);
-            }
-        }
-        for (Map.Entry<String, List<Object[]>> entry : byEmail.entrySet()) {
-            List<Object[]> rows = entry.getValue();
-            // Two users with one address is a failure of a direct login too.
-            if (rows.size() == 1 && Boolean.TRUE.equals(rows.get(0)[2])) {
-                addCandidate(candidates, entry.getKey(), (String) rows.get(0)[1]);
+        for (String realmId : realmIds) {
+            String userId = match(value, byEmail.get(realmId), byUsername.get(realmId));
+            if (userId != null) {
+                addCandidate(candidates, realmId, userId);
             }
         }
         candidates.sort(Comparator.comparing(candidate -> candidate.realm().getName()));
-        return candidates;
+        return List.copyOf(candidates);
+    }
+
+    // Returns the user of one realm that a direct login picks, or null when that user is no candidate.
+    // Keycloak looks for the email address first, and for the username only when no user has that address.
+    static String match(String value, List<Object[]> byEmail, List<Object[]> byUsername) {
+        // Keycloak compares again in Java, because a collation can ignore accents and match more.
+        String named = byUsername != null && value.equalsIgnoreCase((String) byUsername.get(0)[2])
+                ? (String) byUsername.get(0)[1] : null;
+        if (byEmail == null) {
+            return named;
+        }
+        // Two users with one address is a failure of a direct login too.
+        if (byEmail.size() != 1) {
+            return null;
+        }
+        Object[] row = byEmail.get(0);
+        if (!value.equalsIgnoreCase((String) row[2])) {
+            return named;
+        }
+        String userId = (String) row[1];
+        boolean verified = Boolean.TRUE.equals(row[3]);
+        boolean serviceAccount = row[4] != null;
+        // A user matches by its own username, so that username needs no verified address.
+        return !serviceAccount && (verified || userId.equals(named)) ? userId : null;
     }
 
     @Override
@@ -83,10 +106,10 @@ final class DefaultCandidateLookup implements CandidateLookup {
             return Optional.empty();
         }
         RealmModel realm = session.realms().getRealm(realmId);
-        if (realm == null || !isSearched(entryRealm, realm)) {
+        if (realm == null || !isSearched(entryRealm, realm) || !isStoredIn(realm, userId)) {
             return Optional.empty();
         }
-        UserModel user = session.users().getUserById(realm, userId);
+        UserModel user = loadUser(realm, userId);
         if (user == null || user.getServiceAccountClientLink() != null) {
             return Optional.empty();
         }
@@ -109,16 +132,36 @@ final class DefaultCandidateLookup implements CandidateLookup {
         return ids;
     }
 
-    private List<Object[]> query(String select, String identifier, Set<String> excludedIds) {
-        EntityManager entityManager = session.getProvider(JpaConnectionProvider.class).getEntityManager();
-        var query = entityManager
-                .createQuery(select + SEARCHED_REALM + (excludedIds.isEmpty() ? "" : NOT_EXCLUDED), Object[].class)
-                .setParameter("identifier", identifier)
-                .setParameter("master", Config.getAdminRealm());
-        if (!excludedIds.isEmpty()) {
-            query.setParameter("excludedIds", excludedIds);
+    // Keycloak 26.8.0 returns a user that the session already loaded for any realm.
+    // Keycloak also sends an ID that starts with "f:" to a user federation, and fails on a malformed one.
+    private boolean isStoredIn(RealmModel realm, String userId) {
+        UserEntity user = entityManager().find(UserEntity.class, userId);
+        return user != null && realm.getId().equals(user.getRealmId());
+    }
+
+    private UserModel loadUser(RealmModel realm, String userId) {
+        KeycloakContext context = session.getContext();
+        RealmModel contextRealm = context.getRealm();
+        // Keycloak reads rules for the user, such as a disabled organization, from the context realm.
+        context.setRealm(realm);
+        try {
+            return session.users().getUserById(realm, userId);
+        } finally {
+            context.setRealm(contextRealm);
         }
-        return query.getResultList();
+    }
+
+    private EntityManager entityManager() {
+        return session.getProvider(JpaConnectionProvider.class).getEntityManager();
+    }
+
+    private List<Object[]> query(String select, String identifier, Set<String> excludedIds) {
+        return entityManager()
+                .createQuery(select + SEARCHED_REALM, Object[].class)
+                .setParameter("identifier", identifier)
+                .setParameter("master", Config.getAdminRealm())
+                .setParameter("excludedIds", excludedIds)
+                .getResultList();
     }
 
     private static Map<String, List<Object[]>> byRealm(List<Object[]> rows) {
@@ -134,7 +177,7 @@ final class DefaultCandidateLookup implements CandidateLookup {
         if (realm == null) {
             return;
         }
-        UserModel user = session.users().getUserById(realm, userId);
+        UserModel user = loadUser(realm, userId);
         if (user != null) {
             candidates.add(new Candidate(realm, user));
         }

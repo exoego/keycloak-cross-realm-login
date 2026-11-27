@@ -16,7 +16,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 /** Calls the endpoint of the test provider jar. The realm in the URL is the context realm of the lookup. */
 final class CandidateEndpoint {
 
-    record Found(String realmName, String realmId, String userId, String username) {
+    record Found(String realmName, String realmId, String userId, String username, boolean enabled) {
     }
 
     private static final ObjectMapper JSON = new ObjectMapper();
@@ -26,7 +26,16 @@ final class CandidateEndpoint {
     }
 
     static List<Found> candidates(String entryRealm, String identifier) {
-        HttpResponse<String> response = get(entryRealm, "candidates?identifier=" + encode(identifier));
+        return list(entryRealm, "candidates?identifier=" + encode(identifier));
+    }
+
+    /** The lookup gets an entry realm that is not the context realm. */
+    static List<Found> candidatesInContext(String contextRealm, String entryRealm, String identifier) {
+        return list(contextRealm, "candidates?identifier=" + encode(identifier) + "&entryRealm=" + encode(entryRealm));
+    }
+
+    private static List<Found> list(String contextRealm, String pathAndQuery) {
+        HttpResponse<String> response = get(contextRealm, pathAndQuery);
         check(response);
         try {
             return JSON.readValue(response.body(), new TypeReference<>() {
@@ -37,9 +46,18 @@ final class CandidateEndpoint {
     }
 
     static Optional<Found> candidate(String entryRealm, String realmId, String userId) {
-        HttpResponse<String> response = get(entryRealm,
-                "candidate?realmId=" + encode(realmId) + "&userId=" + encode(userId));
-        if (response.statusCode() == 404) {
+        return find(entryRealm, "candidate?realmId=" + encode(realmId) + "&userId=" + encode(userId));
+    }
+
+    /** Looks the identifier up first, in the same session of Keycloak. */
+    static Optional<Found> candidateAfterLookup(String entryRealm, String identifier, String realmId, String userId) {
+        return find(entryRealm, "candidate?realmId=" + encode(realmId) + "&userId=" + encode(userId)
+                + "&after=" + encode(identifier));
+    }
+
+    private static Optional<Found> find(String entryRealm, String pathAndQuery) {
+        HttpResponse<String> response = get(entryRealm, pathAndQuery);
+        if (response.statusCode() == 204) {
             return Optional.empty();
         }
         check(response);

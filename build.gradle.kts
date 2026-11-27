@@ -36,6 +36,8 @@ repositories {
 val testProvider = sourceSets.create("testProvider")
 val testProviderJar = tasks.register<Jar>("testProviderJar") {
     archiveClassifier.set("test-provider")
+    // Away from build/libs, so nobody installs it with the main jar.
+    destinationDirectory.set(layout.buildDirectory.dir("test-libs"))
     from(testProvider.output)
 }
 

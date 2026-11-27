@@ -9,6 +9,9 @@ import jakarta.ws.rs.core.Response;
 import org.junit.jupiter.api.Test;
 import org.keycloak.admin.client.CreatedResponseUtil;
 import org.keycloak.admin.client.resource.RealmResource;
+import org.keycloak.representations.idm.ClientRepresentation;
+import org.keycloak.representations.idm.OrganizationDomainRepresentation;
+import org.keycloak.representations.idm.OrganizationRepresentation;
 import org.keycloak.representations.idm.RealmRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
 
@@ -113,6 +116,79 @@ class CandidateLookupIT {
     }
 
     @Test
+    void anEmailOfAServiceAccountHidesAUsernameThatLooksLikeIt() {
+        withRealm(realm -> {
+            ClientRepresentation client = new ClientRepresentation();
+            client.setClientId("machine");
+            client.setPublicClient(false);
+            client.setServiceAccountsEnabled(true);
+            String clientId;
+            try (Response response = realm.clients().create(client)) {
+                clientId = CreatedResponseUtil.getCreatedId(response);
+            }
+            UserRepresentation serviceAccount = realm.clients().get(clientId).getServiceAccountUser();
+            serviceAccount.setEmail("ops@example.com");
+            serviceAccount.setEmailVerified(true);
+            realm.users().get(serviceAccount.getId()).update(serviceAccount);
+            create(realm, user("ops@example.com", "other@example.com", true));
+            allowLoginWithEmail(realm);
+
+            assertEquals(List.of(), CandidateEndpoint.candidates(ENTRY, "ops@example.com"));
+            assertEquals(1, CandidateEndpoint.candidates(ENTRY, "other@example.com").size());
+        }, false);
+    }
+
+    @Test
+    void findsAUserWhoseUsernameIsItsUnverifiedEmail() {
+        withRealm(realm -> {
+            create(realm, user("carol@tenant.example", "carol@tenant.example", false));
+            allowLoginWithEmail(realm);
+
+            List<Found> found = CandidateEndpoint.candidates(ENTRY, "carol@tenant.example");
+            assertEquals(1, found.size());
+            assertEquals("carol@tenant.example", found.get(0).username());
+        }, false);
+    }
+
+    @Test
+    void findsAMemberOfAnOrganizationFromARealmWithOrganizations() {
+        // Keycloak asks the organizations of the context realm about a user that it loads.
+        withRealm(entry -> withRealm(home -> {
+            createOrganization(entry, "entry-org");
+            String organizationId = createOrganization(home, "home-org");
+            create(home, user("member", "member@home-org.example", true));
+            String memberId = home.users().searchByUsername("member", true).get(0).getId();
+            home.organizations().get(organizationId).members().addMember(memberId).close();
+
+            String entryName = entry.toRepresentation().getRealm();
+            String homeName = home.toRepresentation().getRealm();
+            assertEquals(List.of(homeName), CandidateEndpoint.realmNames(entryName, "member"));
+        }, false), false);
+    }
+
+    @Test
+    void findsADisabledUser() {
+        withRealm(realm -> {
+            UserRepresentation disabled = user("disabled-user", "disabled@example.com", true);
+            disabled.setEnabled(false);
+            create(realm, disabled);
+
+            List<Found> found = CandidateEndpoint.candidates(ENTRY, "disabled-user");
+            assertEquals(1, found.size());
+            assertFalse(found.get(0).enabled());
+            assertTrue(CandidateEndpoint.candidates(ENTRY, "bob").get(0).enabled());
+        }, false);
+    }
+
+    @Test
+    void usesTheEntryRealmOfTheCallerAndNotTheContextRealm() {
+        // With home-b as the entry realm, home-b would be missing.
+        List<Found> found = CandidateEndpoint.candidatesInContext("home-b", ENTRY, "alice");
+
+        assertEquals(List.of("home-a", "home-b"), found.stream().map(Found::realmName).toList());
+    }
+
+    @Test
     void findsNobodyForAnIdentifierOver255Characters() {
         assertEquals(List.of(), CandidateEndpoint.candidates(ENTRY, "a".repeat(256)));
     }
@@ -174,6 +250,26 @@ class CandidateLookupIT {
 
         assertTrue(CandidateEndpoint.candidate(ENTRY, realmIdOfB, userId("home-a", "bob")).isEmpty());
         assertTrue(CandidateEndpoint.candidate(ENTRY, "no-such-realm", userId("home-a", "bob")).isEmpty());
+    }
+
+    @Test
+    void findReturnsNothingForTheWrongRealmWhenTheSessionHoldsTheUser() {
+        // Keycloak 26.8.0 returns a user that the session already loaded for any realm.
+        String bob = userId("home-a", "bob");
+        String realmIdOfA = realm("home-a").toRepresentation().getId();
+        String realmIdOfB = realm("home-b").toRepresentation().getId();
+
+        assertTrue(CandidateEndpoint.candidateAfterLookup(ENTRY, "bob", realmIdOfA, bob).isPresent());
+        assertTrue(CandidateEndpoint.candidateAfterLookup(ENTRY, "bob", realmIdOfB, bob).isEmpty());
+    }
+
+    @Test
+    void findReturnsNothingForAnIdOfAUserFederation() {
+        String realmId = realm("home-a").toRepresentation().getId();
+
+        assertTrue(CandidateEndpoint.candidate(ENTRY, realmId, "f:no-such-component:bob").isEmpty());
+        // Keycloak cannot parse this one.
+        assertTrue(CandidateEndpoint.candidate(ENTRY, realmId, "f:bob").isEmpty());
     }
 
     @Test
@@ -248,7 +344,23 @@ class CandidateLookupIT {
     private static void allowLoginWithEmail(RealmResource realm) {
         RealmRepresentation rep = realm.toRepresentation();
         rep.setLoginWithEmailAllowed(true);
+        // Keycloak turns login with email off again when the same update allows duplicate emails.
+        rep.setDuplicateEmailsAllowed(false);
         realm.update(rep);
+        assertTrue(realm.toRepresentation().isLoginWithEmailAllowed());
+    }
+
+    private static String createOrganization(RealmResource realm, String name) {
+        RealmRepresentation rep = realm.toRepresentation();
+        rep.setOrganizationsEnabled(true);
+        realm.update(rep);
+        OrganizationRepresentation organization = new OrganizationRepresentation();
+        organization.setName(name);
+        organization.setAlias(name);
+        organization.addDomain(new OrganizationDomainRepresentation(name + ".example"));
+        try (Response response = realm.organizations().create(organization)) {
+            return CreatedResponseUtil.getCreatedId(response);
+        }
     }
 
     private static void create(RealmResource realm, UserRepresentation user) {

@@ -1,7 +1,14 @@
 package net.exoego.keycloak.crossrealm;
 
-import org.junit.jupiter.api.Test;
+import java.lang.reflect.Proxy;
+import java.util.Collections;
+import java.util.List;
 
+import org.junit.jupiter.api.Test;
+import org.keycloak.models.RealmModel;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class DefaultCandidateLookupTest {
@@ -10,7 +17,44 @@ class DefaultCandidateLookupTest {
 
     @Test
     void failsWithoutAnEntryRealm() {
-        assertThrows(NullPointerException.class, () -> lookup.findByIdentifier(null, "alice"));
-        assertThrows(NullPointerException.class, () -> lookup.find(null, "realm", "user"));
+        // The message tells this check from a failure further down, where the session is null.
+        assertEquals("entryRealm",
+                assertThrows(NullPointerException.class, () -> lookup.findByIdentifier(null, "alice")).getMessage());
+        assertEquals("entryRealm",
+                assertThrows(NullPointerException.class, () -> lookup.find(null, "realm", "user")).getMessage());
+    }
+
+    @Test
+    void searchesNothingForAnIdentifierThatNoUserCanHave() {
+        RealmModel entryRealm = realmThatFailsWhenRead();
+
+        assertEquals(List.of(), lookup.findByIdentifier(entryRealm, null));
+        assertEquals(List.of(), lookup.findByIdentifier(entryRealm, "   "));
+        assertEquals(List.of(), lookup.findByIdentifier(entryRealm, "a".repeat(256)));
+        assertThrows(AssertionError.class, () -> lookup.findByIdentifier(entryRealm, "a".repeat(255)));
+    }
+
+    @Test
+    void comparesTheRowsAgainAsKeycloakDoes() {
+        // MySQL and MariaDB ignore accents when they compare, so the queries return such rows.
+        List<Object[]> named = row("realm", "a", "rene@example.com");
+        List<Object[]> withAccent = row("realm", "b", "ren\u00e9@example.com", true, null);
+
+        assertNull(DefaultCandidateLookup.match("jose", null, row("realm", "c", "jos\u00e9")));
+        assertEquals("a", DefaultCandidateLookup.match("rene@example.com", withAccent, named));
+        assertNull(DefaultCandidateLookup.match("rene@example.com", withAccent, null));
+        assertEquals("b", DefaultCandidateLookup.match("ren\u00e9@example.com", withAccent, null));
+    }
+
+    private static List<Object[]> row(Object... columns) {
+        return Collections.singletonList(columns);
+    }
+
+    // The lookup reads the entry realm right before it searches.
+    private static RealmModel realmThatFailsWhenRead() {
+        return (RealmModel) Proxy.newProxyInstance(RealmModel.class.getClassLoader(), new Class<?>[] {RealmModel.class},
+                (proxy, method, args) -> {
+                    throw new AssertionError(method.getName());
+                });
     }
 }

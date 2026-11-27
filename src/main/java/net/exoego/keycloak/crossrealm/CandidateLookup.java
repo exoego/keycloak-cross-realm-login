@@ -20,6 +20,8 @@ public interface CandidateLookup extends Provider {
      * Finds the candidates of an identifier, at most one for each realm, in the order of the realm names.
      * The identifier is trimmed and set to lower case, as a direct login does.
      * An email address matches only when the home realm allows login with email and the address is verified.
+     * A username always matches, also when it is the unverified email address of the same user.
+     * The list cannot be changed.
      */
     List<Candidate> findByIdentifier(RealmModel entryRealm, String identifier);
 

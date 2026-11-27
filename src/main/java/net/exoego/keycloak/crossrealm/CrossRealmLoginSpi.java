@@ -28,8 +28,7 @@ public class CrossRealmLoginSpi implements Spi {
     }
 
     @Override
-    @SuppressWarnings("rawtypes")
-    public Class<? extends ProviderFactory> getProviderFactoryClass() {
+    public Class<? extends ProviderFactory<?>> getProviderFactoryClass() {
         return CandidateLookupFactory.class;
     }
 }
