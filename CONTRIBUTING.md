@@ -37,7 +37,7 @@ Write a comment only for something the code cannot say, such as a reason.
 | `feature` | New feature |
 | `bug` | Something does not work |
 | `chore` | Build, CI, docs, and other upkeep |
-| `decision` | A design choice. It stays open for objections after it is decided |
+| `decision` | A design choice. The issue is closed when the choice is written in `docs/decisions.md` |
 
 ## Build and test
 
