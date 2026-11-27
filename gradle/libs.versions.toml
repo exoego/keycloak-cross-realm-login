@@ -7,7 +7,6 @@ postgres-image = "18.7"
 
 [libraries]
 keycloak-parent = { module = "org.keycloak:keycloak-parent", version.ref = "keycloak" }
-# Keycloak loads these from its own lib directory, so the provider jar must not bundle them.
 keycloak-core = { module = "org.keycloak:keycloak-core", version.ref = "keycloak" }
 keycloak-common = { module = "org.keycloak:keycloak-common", version.ref = "keycloak" }
 keycloak-server-spi = { module = "org.keycloak:keycloak-server-spi", version.ref = "keycloak" }
@@ -15,16 +14,13 @@ keycloak-server-spi-private = { module = "org.keycloak:keycloak-server-spi-priva
 keycloak-services = { module = "org.keycloak:keycloak-services", version.ref = "keycloak" }
 keycloak-model-jpa = { module = "org.keycloak:keycloak-model-jpa", version.ref = "keycloak" }
 keycloak-model-storage-private = { module = "org.keycloak:keycloak-model-storage-private", version.ref = "keycloak" }
-# The version comes from the Keycloak parent POM.
 jboss-logging = { module = "org.jboss.logging:jboss-logging" }
 
 testcontainers-keycloak = { module = "com.github.dasniko:testcontainers-keycloak", version = "4.4.0" }
 testcontainers-postgresql = { module = "org.testcontainers:testcontainers-postgresql", version = "2.0.5" }
 jacoco-core = { module = "org.jacoco:org.jacoco.core", version.ref = "jacoco" }
 slf4j-simple = { module = "org.slf4j:slf4j-simple", version = "2.0.20" }
-# The tests drive its bundled Chromium. The Gradle task installBrowser downloads that browser.
 playwright = { module = "com.microsoft.playwright:playwright", version = "1.65.1" }
-# The version comes from the Keycloak parent POM.
 jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind" }
 
 errorprone-core = { module = "com.google.errorprone:error_prone_core", version = "2.53.0" }
