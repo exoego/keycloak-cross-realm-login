@@ -57,8 +57,11 @@ The lookup reads the Keycloak database. A user of a user federation is found onl
 |---|---|
 | Keycloak | 26.8 |
 | Java | 21 |
+| Database | PostgreSQL |
 
 The extension uses internal APIs of Keycloak. A new minor version of Keycloak can break it.
+
+The tests run only with PostgreSQL. The other databases of Keycloak may work, and nothing tests them.
 
 ## Contributing
 
