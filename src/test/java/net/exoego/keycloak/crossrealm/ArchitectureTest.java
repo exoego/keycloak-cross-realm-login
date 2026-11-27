@@ -18,9 +18,9 @@ class ArchitectureTest {
     @Test
     void onlyHomeRealmContextSetsTheContextRealm() {
         noClasses().that().doNotHaveFullyQualifiedName(HomeRealmContext.class.getName())
-                .should().callMethodWhere(describe("sets the context realm",
-                        call -> call.getTargetOwner().isAssignableTo(KeycloakContext.class)
-                                && call.getName().equals("setRealm")))
+                .should().accessTargetWhere(describe("it sets the context realm",
+                        access -> access.getTargetOwner().isAssignableTo(KeycloakContext.class)
+                                && access.getName().equals("setRealm")))
                 .because("HomeRealmContext puts the old realm back, and nothing else does")
                 .check(MAIN);
     }

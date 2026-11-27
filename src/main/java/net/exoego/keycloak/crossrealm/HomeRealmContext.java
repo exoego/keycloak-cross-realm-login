@@ -10,7 +10,7 @@ import org.keycloak.models.RealmModel;
 /**
  * The only place that sets the context realm.
  * Some parts of Keycloak read the context realm and not the realm of the user.
- * An architecture test enforces that nothing else sets it.
+ * An architecture test fails when another class of the main code uses {@code KeycloakContext.setRealm}.
  */
 final class HomeRealmContext {
 
@@ -28,8 +28,8 @@ final class HomeRealmContext {
         Objects.requireNonNull(block, "block");
         KeycloakContext context = session.getContext();
         RealmModel previous = context.getRealm();
-        context.setRealm(homeRealm);
         try {
+            context.setRealm(homeRealm);
             return block.get();
         } finally {
             context.setRealm(previous);

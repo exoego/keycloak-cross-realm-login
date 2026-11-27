@@ -21,6 +21,7 @@ class HomeRealmContextTest {
     private final RealmModel homeB = realm("home-b");
     private final List<String> seen = new ArrayList<>();
     private RealmModel current = entry;
+    private String failsFor;
     private final KeycloakSession session = session();
 
     @Test
@@ -53,6 +54,27 @@ class HomeRealmContextTest {
         }));
 
         assertSame(entry, current);
+    }
+
+    @Test
+    void putsTheOldRealmBackWhenTheSwitchFails() {
+        failsFor = "home-a";
+
+        assertThrows(IllegalStateException.class, () -> HomeRealmContext.call(session, homeA, () -> "x"));
+
+        assertSame(entry, current);
+    }
+
+    @Test
+    void leavesNoContextRealmWhenThereWasNone() {
+        current = null;
+
+        HomeRealmContext.call(session, homeA, () -> {
+            assertSame(homeA, current);
+            return null;
+        });
+
+        assertNull(current);
     }
 
     @Test
@@ -111,7 +133,12 @@ class HomeRealmContextTest {
                     case "getRealm" -> current;
                     case "setRealm" -> {
                         current = (RealmModel) args[0];
-                        seen.add(current.getName());
+                        String name = String.valueOf(current);
+                        seen.add(name);
+                        // Keycloak stores the realm first, and the steps after that can fail.
+                        if (name.equals(failsFor)) {
+                            throw new IllegalStateException(name);
+                        }
                         yield null;
                     }
                     default -> throw new UnsupportedOperationException(method.getName());
