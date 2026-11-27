@@ -1,7 +1,10 @@
 package net.exoego.keycloak.crossrealm;
 
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Stream;
 
 import org.keycloak.common.util.MultivaluedHashMap;
@@ -16,11 +19,8 @@ import org.keycloak.storage.adapter.AbstractUserAdapter;
 /** A read-only copy of a home realm user, as the entry realm shows it. The copy is not stored. */
 final class CrossRealmUser extends AbstractUserAdapter {
 
-    private final String username;
-    private final String email;
+    private final Map<String, String> profile;
     private final boolean emailVerified;
-    private final String firstName;
-    private final String lastName;
     private final boolean enabled;
 
     /** Reads the home user at once, so the caller must run it with the home realm as the context realm. */
@@ -28,37 +28,40 @@ final class CrossRealmUser extends AbstractUserAdapter {
             UserModel homeUser) {
         super(session, entryRealm, component);
         storageId = new StorageId(component.getId(), id.externalId());
-        username = homeUser.getUsername();
-        email = homeUser.getEmail();
+        Map<String, String> values = new HashMap<>();
+        values.put(UserModel.USERNAME, homeUser.getUsername());
+        values.put(UserModel.EMAIL, homeUser.getEmail());
+        values.put(UserModel.FIRST_NAME, homeUser.getFirstName());
+        values.put(UserModel.LAST_NAME, homeUser.getLastName());
+        values.values().removeIf(Objects::isNull);
+        profile = Collections.unmodifiableMap(values);
         emailVerified = homeUser.isEmailVerified();
-        firstName = homeUser.getFirstName();
-        lastName = homeUser.getLastName();
         enabled = homeUser.isEnabled();
     }
 
     @Override
     public String getUsername() {
-        return username;
+        return getFirstAttribute(UserModel.USERNAME);
     }
 
     @Override
     public String getEmail() {
-        return email;
+        return getFirstAttribute(UserModel.EMAIL);
+    }
+
+    @Override
+    public String getFirstName() {
+        return getFirstAttribute(UserModel.FIRST_NAME);
+    }
+
+    @Override
+    public String getLastName() {
+        return getFirstAttribute(UserModel.LAST_NAME);
     }
 
     @Override
     public boolean isEmailVerified() {
         return emailVerified;
-    }
-
-    @Override
-    public String getFirstName() {
-        return firstName;
-    }
-
-    @Override
-    public String getLastName() {
-        return lastName;
     }
 
     @Override
@@ -69,29 +72,18 @@ final class CrossRealmUser extends AbstractUserAdapter {
     // The mappers of the email and profile scopes read attributes, not the getters.
     @Override
     public String getFirstAttribute(String name) {
-        return switch (name) {
-            case UserModel.USERNAME -> getUsername();
-            case UserModel.EMAIL -> getEmail();
-            case UserModel.FIRST_NAME -> getFirstName();
-            case UserModel.LAST_NAME -> getLastName();
-            default -> null;
-        };
+        return profile.get(name);
     }
 
     @Override
     public Stream<String> getAttributeStream(String name) {
-        return Stream.ofNullable(getFirstAttribute(name));
+        return Stream.ofNullable(profile.get(name));
     }
 
     @Override
     public Map<String, List<String>> getAttributes() {
         MultivaluedHashMap<String, String> attributes = new MultivaluedHashMap<>();
-        for (String name : List.of(UserModel.USERNAME, UserModel.EMAIL, UserModel.FIRST_NAME, UserModel.LAST_NAME)) {
-            String value = getFirstAttribute(name);
-            if (value != null) {
-                attributes.add(name, value);
-            }
-        }
+        profile.forEach(attributes::add);
         return attributes;
     }
 

@@ -1,5 +1,7 @@
 package net.exoego.keycloak.crossrealm;
 
+import java.util.Optional;
+
 import org.keycloak.component.ComponentModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
@@ -21,11 +23,17 @@ final class CrossRealmUserStorageProvider implements UserStorageProvider, UserLo
 
     @Override
     public UserModel getUserById(RealmModel realm, String id) {
-        return HomeUserId.parse(StorageId.externalId(id))
-                .flatMap(home -> session.getProvider(CandidateLookup.class).find(realm, home.realmId(), home.userId())
-                        .map(candidate -> HomeRealmContext.call(session, candidate.realm(),
-                                () -> new CrossRealmUser(session, realm, component, home, candidate.user()))))
-                .orElse(null);
+        Optional<HomeUserId> home = HomeUserId.parse(StorageId.externalId(id));
+        if (home.isEmpty()) {
+            return null;
+        }
+        Optional<Candidate> candidate = session.getProvider(CandidateLookup.class)
+                .find(realm, home.get().realmId(), home.get().userId());
+        if (candidate.isEmpty()) {
+            return null;
+        }
+        return HomeRealmContext.call(session, candidate.get().realm(),
+                () -> new CrossRealmUser(session, realm, component, home.get(), candidate.get().user()));
     }
 
     // Several users can have one name. Only the authenticator picks one, after the password matched.

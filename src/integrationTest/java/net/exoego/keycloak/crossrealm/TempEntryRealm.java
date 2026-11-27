@@ -2,69 +2,41 @@ package net.exoego.keycloak.crossrealm;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.UUID;
-
-import jakarta.ws.rs.core.Response;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.keycloak.admin.client.CreatedResponseUtil;
-import org.keycloak.admin.client.resource.RealmResource;
-import org.keycloak.representations.idm.OrganizationDomainRepresentation;
-import org.keycloak.representations.idm.OrganizationRepresentation;
 import org.keycloak.representations.idm.RealmRepresentation;
 
-import static net.exoego.keycloak.crossrealm.KeycloakEnvironment.KEYCLOAK;
-
 /** An entry realm with a random name that exists for one test. It has the settings of entry-realm.json. */
-final class TempEntryRealm implements AutoCloseable {
+final class TempEntryRealm extends TempRealmBase {
 
-    static final String CLIENT = "entry-client";
-
-    private final String name = "tmp-entry-" + UUID.randomUUID();
-    private final RealmResource realm;
-
-    TempEntryRealm(boolean withUserStorage) {
-        this(withUserStorage, false);
+    private TempEntryRealm(boolean withUserStorage, boolean withDefaultRequiredActions) {
+        super("tmp-entry-", configured(withUserStorage, withDefaultRequiredActions));
     }
 
-    /** With the default required actions, the realm is like one made in the admin console. */
-    TempEntryRealm(boolean withUserStorage, boolean withDefaultRequiredActions) {
+    /** The realm of entry-realm.json as it is. */
+    static TempEntryRealm withUserStorage() {
+        return new TempEntryRealm(true, false);
+    }
+
+    /** The realm has no cross-realm user storage. */
+    static TempEntryRealm withoutUserStorage() {
+        return new TempEntryRealm(false, false);
+    }
+
+    /** The realm has the default required actions, like one made in the admin console. */
+    static TempEntryRealm withDefaultRequiredActions() {
+        return new TempEntryRealm(true, true);
+    }
+
+    private static RealmRepresentation configured(boolean withUserStorage, boolean withDefaultRequiredActions) {
         RealmRepresentation rep = read();
-        rep.setRealm(name);
         if (withDefaultRequiredActions) {
             rep.setRequiredActions(null);
         }
         if (!withUserStorage) {
             rep.setComponents(null);
         }
-        KEYCLOAK.getKeycloakAdminClient().realms().create(rep);
-        realm = KEYCLOAK.getKeycloakAdminClient().realm(name);
-    }
-
-    String name() {
-        return name;
-    }
-
-    RealmResource resource() {
-        return realm;
-    }
-
-    void addOrganization(String alias, String domain) {
-        RealmRepresentation rep = realm.toRepresentation();
-        rep.setOrganizationsEnabled(true);
-        realm.update(rep);
-        OrganizationRepresentation organization = new OrganizationRepresentation();
-        organization.setName(alias);
-        organization.setAlias(alias);
-        organization.addDomain(new OrganizationDomainRepresentation(domain));
-        try (Response response = realm.organizations().create(organization)) {
-            CreatedResponseUtil.getCreatedId(response);
-        }
-    }
-
-    @Override
-    public void close() {
-        realm.remove();
+        return rep;
     }
 
     private static RealmRepresentation read() {

@@ -148,16 +148,16 @@ final class Browser implements AutoCloseable {
             if (code == null) {
                 throw new AssertionError("The redirect to the client has no code: " + page.url());
             }
-            return new LoginResult((String) code, false, "", "");
+            return new LoginResult((String) code, false, "");
         }
         var error = page.locator(ERROR_SELECTOR);
         String text = error.count() == 0 ? "" : error.first().innerText().strip().replaceAll("\\s+", " ");
         boolean loginForm = page.locator(LOGIN_FORM).count() > 0;
-        return new LoginResult(null, loginForm, text, loginForm ? formShape() : "");
+        return new LoginResult(null, loginForm, text);
     }
 
-    // The markup of the login form without what changes for each request, such as the action URL and the values.
-    private String formShape() {
+    /** The markup of the login form without what changes for each request, such as the action URL and the values. */
+    String loginFormShape() {
         return (String) page.locator(LOGIN_FORM).evaluate("form => {"
                 + " const copy = form.cloneNode(true);"
                 + " copy.removeAttribute('action');"

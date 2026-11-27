@@ -4,15 +4,11 @@ import java.util.List;
 import java.util.UUID;
 
 import jakarta.ws.rs.WebApplicationException;
-import jakarta.ws.rs.core.Response;
 
 import org.junit.jupiter.api.Test;
-import org.keycloak.admin.client.CreatedResponseUtil;
 import org.keycloak.admin.client.resource.RealmResource;
 import org.keycloak.admin.client.resource.UserResource;
 import org.keycloak.representations.idm.CredentialRepresentation;
-import org.keycloak.representations.idm.OrganizationDomainRepresentation;
-import org.keycloak.representations.idm.OrganizationRepresentation;
 import org.keycloak.representations.idm.RealmRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
 
@@ -54,23 +50,20 @@ class PasswordLoginIT {
     void aWrongPasswordLooksLikeAnUnknownIdentifier() throws Exception {
         try (Browser browser = new Browser()) {
             LoginResult wrongPassword = browser.login(ENTRY, CLIENT, "alice", "not-the-password");
+            String wrongPasswordShape = browser.loginFormShape();
             LoginResult unknown = browser.login(ENTRY, CLIENT, "nobody-" + UUID.randomUUID(), "not-the-password");
+            String unknownShape = browser.loginFormShape();
 
-            assertTrue(wrongPassword.isLoginForm());
-            assertEquals(INVALID, wrongPassword.error());
-            assertTrue(unknown.isLoginForm());
-            assertEquals(wrongPassword.error(), unknown.error());
-            assertEquals(wrongPassword.formShape(), unknown.formShape());
+            assertRejected(wrongPassword);
+            assertRejected(unknown);
+            assertEquals(wrongPasswordShape, unknownShape);
         }
     }
 
     @Test
     void anEmptyPasswordFailsLikeAWrongOne() {
         try (Browser browser = new Browser()) {
-            LoginResult result = browser.login(ENTRY, CLIENT, "alice", "");
-
-            assertTrue(result.isLoginForm());
-            assertEquals(INVALID, result.error());
+            assertRejected(browser.login(ENTRY, CLIENT, "alice", ""));
         }
     }
 
@@ -81,10 +74,7 @@ class PasswordLoginIT {
             one.addUser(username, "same-password", true);
             two.addUser(username, "same-password", true);
 
-            LoginResult result = browser.login(ENTRY, CLIENT, username, "same-password");
-
-            assertTrue(result.isLoginForm());
-            assertEquals(INVALID, result.error());
+            assertRejected(browser.login(ENTRY, CLIENT, username, "same-password"));
         }
     }
 
@@ -94,10 +84,7 @@ class PasswordLoginIT {
         try (TempRealm home = new TempRealm(); Browser browser = new Browser()) {
             home.addUser(username, "the-password", false);
 
-            LoginResult result = browser.login(ENTRY, CLIENT, username, "the-password");
-
-            assertTrue(result.isLoginForm());
-            assertEquals(INVALID, result.error());
+            assertRejected(browser.login(ENTRY, CLIENT, username, "the-password"));
         }
     }
 
@@ -112,11 +99,9 @@ class PasswordLoginIT {
             IdToken token = browser.exchange(ENTRY, CLIENT,
                     browser.login(ENTRY, CLIENT, username, "password-of-the-enabled").code());
             assertEquals(username, token.preferredUsername());
-            assertEquals(proxyId(enabledHome.id(), enabledId), token.subject());
+            assertEquals(proxyId(ENTRY, enabledHome.id(), enabledId), token.subject());
 
-            LoginResult disabledPassword = other.login(ENTRY, CLIENT, username, "password-of-the-disabled");
-            assertTrue(disabledPassword.isLoginForm());
-            assertEquals(INVALID, disabledPassword.error());
+            assertRejected(other.login(ENTRY, CLIENT, username, "password-of-the-disabled"));
         }
     }
 
@@ -144,15 +129,9 @@ class PasswordLoginIT {
     void theEntryRealmStoresNothingAboutTheUser() throws Exception {
         IdToken token = loginAtEntry("alice", "alice-password-a");
         String proxyId = token.subject();
-        String entryId = KEYCLOAK.getKeycloakAdminClient().realm(ENTRY).toRepresentation().getId();
+        assertTrue(proxyId.startsWith("f:"));
 
-        assertEquals(0, Database.count("user_entity", "realm_id = '" + entryId + "' or id = '" + proxyId + "'"));
-        assertEquals(0, Database.count("credential", "user_id = '" + proxyId + "'"));
-        List<String> tables = Database.tables("fed_user_");
-        assertFalse(tables.isEmpty());
-        for (String table : tables) {
-            assertEquals(0, Database.count(table, "true"), table);
-        }
+        Database.assertNothingStoredFor(realmId(ENTRY));
         // The check can see a user that is stored.
         assertEquals(1, Database.count("credential", "user_id = '" + homeUserId("home-a", "alice") + "'"));
     }
@@ -187,14 +166,12 @@ class PasswordLoginIT {
 
         assertThrows(WebApplicationException.class, () -> user.resetPassword(credential));
 
-        assertEquals(0, Database.count("fed_user_credential", "user_id = '" + proxyId + "'"));
         assertEquals(0, Database.count("fed_user_credential", "true"));
-        assertEquals(List.of(), user.credentials());
     }
 
     @Test
     void aLoginAtAnEntryRealmWithTheDefaultRequiredActionsWorks() throws Exception {
-        try (TempEntryRealm entry = new TempEntryRealm(true, true)) {
+        try (TempEntryRealm entry = TempEntryRealm.withDefaultRequiredActions()) {
             IdToken token = loginAt(entry.name(), "alice", "alice-password-a");
 
             assertEquals("alice", token.preferredUsername());
@@ -205,7 +182,7 @@ class PasswordLoginIT {
     @Test
     void aUserWithAnUnverifiedEmailLogsInAtAnEntryRealmThatVerifiesEmail() throws Exception {
         String username = "unverified-" + UUID.randomUUID();
-        try (TempEntryRealm entry = new TempEntryRealm(true, true); TempRealm home = new TempRealm()) {
+        try (TempEntryRealm entry = TempEntryRealm.withDefaultRequiredActions(); TempRealm home = new TempRealm()) {
             RealmRepresentation realm = entry.resource().toRepresentation();
             realm.setVerifyEmail(true);
             entry.resource().update(realm);
@@ -226,9 +203,8 @@ class PasswordLoginIT {
 
     @Test
     void aRequiredActionFromTheBrowserCannotStoreACredentialOfTheUser() {
-        try (TempEntryRealm entry = new TempEntryRealm(true, true); Browser browser = new Browser();
+        try (TempEntryRealm entry = TempEntryRealm.withDefaultRequiredActions(); Browser browser = new Browser();
                 Browser direct = new Browser()) {
-            String entryId = entry.resource().toRepresentation().getId();
 
             LoginResult result = browser.loginAndUpdatePassword(entry.name(), CLIENT, "alice", "alice-password-a",
                     "new-password");
@@ -236,13 +212,8 @@ class PasswordLoginIT {
             assertFalse(browser.url().contains("kc_action_status=success"));
             assertFalse(result.isLoginForm());
             assertEquals("The user has no credentials in this realm", result.error());
-            assertEquals(0, Database.count("fed_user_credential", "realm_id = '" + entryId + "'"));
-            assertEquals(0, Database.count("credential", "user_id like 'f:%'"));
-            assertEquals(0, Database.count("credential",
-                    "user_id in (select id from user_entity where realm_id = '" + entryId + "')"));
-            LoginResult withNewPassword = direct.login("home-a", "test-client", "alice", "new-password");
-            assertTrue(withNewPassword.isLoginForm());
-            assertEquals(INVALID, withNewPassword.error());
+            Database.assertNothingStoredFor(entry.id());
+            assertRejected(direct.login("home-a", "test-client", "alice", "new-password"));
             assertNotNull(direct.login("home-a", "test-client", "alice", "alice-password-a").code());
         }
     }
@@ -250,19 +221,9 @@ class PasswordLoginIT {
     @Test
     void aMemberOfAnOrganizationLogsInAtAnEntryRealmWithAnOrganization() throws Exception {
         String username = "member-" + UUID.randomUUID();
-        try (TempEntryRealm entry = new TempEntryRealm(true); TempRealm home = new TempRealm()) {
+        try (TempEntryRealm entry = TempEntryRealm.withUserStorage(); TempRealm home = new TempRealm()) {
             entry.addOrganization("entry-org", "entry-org.example");
-            RealmRepresentation rep = home.resource().toRepresentation();
-            rep.setOrganizationsEnabled(true);
-            home.resource().update(rep);
-            OrganizationRepresentation organization = new OrganizationRepresentation();
-            organization.setName("home-org");
-            organization.setAlias("home-org");
-            organization.addDomain(new OrganizationDomainRepresentation("home-org.example"));
-            String organizationId;
-            try (Response response = home.resource().organizations().create(organization)) {
-                organizationId = CreatedResponseUtil.getCreatedId(response);
-            }
+            String organizationId = home.addOrganization("home-org", "home-org.example");
             String userId = home.addUser(username, "the-password", true);
             home.resource().organizations().get(organizationId).members().addMember(userId).close();
 
@@ -290,7 +251,7 @@ class PasswordLoginIT {
 
     @Test
     void failsWithTheGenericErrorPageWhenTheRealmHasNoUserStorage() {
-        try (TempEntryRealm entry = new TempEntryRealm(false); Browser browser = new Browser()) {
+        try (TempEntryRealm entry = TempEntryRealm.withoutUserStorage(); Browser browser = new Browser()) {
             LoginResult result = browser.login(entry.name(), CLIENT, "alice", "alice-password-a");
 
             assertFalse(result.isLoginForm());
@@ -316,11 +277,13 @@ class PasswordLoginIT {
 
     private static void assertCannotLogIn(String username, String password) {
         try (Browser browser = new Browser()) {
-            LoginResult result = browser.login(ENTRY, CLIENT, username, password);
-
-            assertTrue(result.isLoginForm());
-            assertEquals(INVALID, result.error());
+            assertRejected(browser.login(ENTRY, CLIENT, username, password));
         }
+    }
+
+    private static void assertRejected(LoginResult result) {
+        assertTrue(result.isLoginForm());
+        assertEquals(INVALID, result.error());
     }
 
     private static IdToken loginAtEntry(String identifier, String password) throws Exception {
@@ -337,17 +300,13 @@ class PasswordLoginIT {
         return proxyId(ENTRY, realmId(homeRealm), homeUserId(homeRealm, username));
     }
 
-    private static String proxyId(String homeRealmId, String homeUserId) {
-        return proxyId(ENTRY, homeRealmId, homeUserId);
-    }
-
     private static String proxyId(String entryRealm, String homeRealmId, String homeUserId) {
         return "f:" + componentId(entryRealm) + ":" + homeRealmId + ":" + homeUserId;
     }
 
     private static String componentId(String entryRealm) {
         RealmResource entry = KEYCLOAK.getKeycloakAdminClient().realm(entryRealm);
-        return entry.components().query(entry.toRepresentation().getId(), USER_STORAGE).stream()
+        return entry.components().query(realmId(entryRealm), USER_STORAGE).stream()
                 .filter(component -> STORAGE_ID.equals(component.getProviderId()))
                 .findFirst().orElseThrow().getId();
     }
