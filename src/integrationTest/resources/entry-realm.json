@@ -8,5 +8,49 @@
       "publicClient": true,
       "redirectUris": ["http://127.0.0.1/callback"]
     }
+  ],
+  "components": {
+    "org.keycloak.storage.UserStorageProvider": [
+      {
+        "name": "cross-realm-users",
+        "providerId": "cross-realm-users",
+        "config": { "cachePolicy": ["NO_CACHE"] }
+      }
+    ]
+  },
+  "authenticationFlows": [
+    {
+      "alias": "cross-realm-browser",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "auth-cookie",
+          "requirement": "ALTERNATIVE",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "autheticatorFlow": false
+        },
+        {
+          "authenticator": "cross-realm-password",
+          "requirement": "ALTERNATIVE",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "autheticatorFlow": false
+        }
+      ]
+    }
+  ],
+  "browserFlow": "cross-realm-browser",
+  "requiredActions": [
+    {
+      "alias": "VERIFY_PROFILE",
+      "name": "Verify Profile",
+      "providerId": "VERIFY_PROFILE",
+      "enabled": false,
+      "defaultAction": false,
+      "priority": 90
+    }
   ]
 }

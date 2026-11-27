@@ -9,6 +9,14 @@ record IdToken(Map<String, Object> claims) {
         return String.valueOf(claims.get("iss"));
     }
 
+    String subject() {
+        return String.valueOf(claims.get("sub"));
+    }
+
+    String email() {
+        return String.valueOf(claims.get("email"));
+    }
+
     String preferredUsername() {
         return String.valueOf(claims.get("preferred_username"));
     }
