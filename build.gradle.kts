@@ -19,6 +19,12 @@ tasks.withType<JavaCompile>().configureEach {
     options.compilerArgs.addAll(listOf("-Xlint:all", "-Werror"))
 }
 
+tasks.withType<Jar>().configureEach {
+    from(files("LICENSE", "NOTICE")) {
+        into("META-INF")
+    }
+}
+
 repositories {
     mavenCentral()
 }
