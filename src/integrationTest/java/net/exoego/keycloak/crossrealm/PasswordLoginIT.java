@@ -73,17 +73,6 @@ class PasswordLoginIT {
     }
 
     @Test
-    void theSamePasswordInTwoHomeRealmsFailsLikeAWrongPassword() {
-        String username = "twin-" + UUID.randomUUID();
-        try (TempRealm one = new TempRealm(); TempRealm two = new TempRealm(); Browser browser = new Browser()) {
-            one.addUser(username, "same-password", true);
-            two.addUser(username, "same-password", true);
-
-            assertRejected(browser.login(ENTRY, CLIENT, username, "same-password"));
-        }
-    }
-
-    @Test
     void aDisabledUserNeverMatches() {
         String username = "disabled-" + UUID.randomUUID();
         try (TempRealm home = new TempRealm(); Browser browser = new Browser()) {

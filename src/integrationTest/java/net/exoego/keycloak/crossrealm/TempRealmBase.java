@@ -43,6 +43,27 @@ abstract class TempRealmBase implements AutoCloseable {
         return realm;
     }
 
+    /** Sets the display name of the realm. */
+    final void setDisplayName(String displayName) {
+        RealmRepresentation rep = realm.toRepresentation();
+        rep.setDisplayName(displayName);
+        realm.update(rep);
+    }
+
+    /** Disables the realm. */
+    final void disable() {
+        RealmRepresentation rep = realm.toRepresentation();
+        rep.setEnabled(false);
+        realm.update(rep);
+    }
+
+    /** Disables a user of the realm. */
+    final void disableUser(String userId) {
+        UserRepresentation user = realm.users().get(userId).toRepresentation();
+        user.setEnabled(false);
+        realm.users().get(userId).update(user);
+    }
+
     /** Creates a user with a verified email address and returns the ID. */
     final String addUser(String username, String password, boolean enabled) {
         return addUser(username, username + "@" + name + ".example", true, password, enabled);
