@@ -5,11 +5,13 @@ final class LoginResult {
 
     private final String code;
     private final boolean loginForm;
+    private final boolean chooser;
     private final String error;
 
-    LoginResult(String code, boolean loginForm, String error) {
+    LoginResult(String code, boolean loginForm, boolean chooser, String error) {
         this.code = code;
         this.loginForm = loginForm;
+        this.chooser = chooser;
         this.error = error;
     }
 
@@ -23,6 +25,11 @@ final class LoginResult {
 
     boolean isLoginForm() {
         return loginForm;
+    }
+
+    /** The page lists the realms of the matches. */
+    boolean isChooser() {
+        return chooser;
     }
 
     /** The error text of the login form or of the error page. It is empty when the page shows none. */

@@ -2,6 +2,7 @@ package net.exoego.keycloak.crossrealm;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Set;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.keycloak.representations.idm.RealmRepresentation;
@@ -26,6 +27,15 @@ final class TempEntryRealm extends TempRealmBase {
     /** The realm has the default required actions, like one made in the admin console. */
     static TempEntryRealm withDefaultRequiredActions() {
         return new TempEntryRealm(true, true);
+    }
+
+    /** Turns on the languages of the login pages. */
+    void supportLocales(String... locales) {
+        RealmRepresentation rep = resource().toRepresentation();
+        rep.setInternationalizationEnabled(true);
+        rep.setSupportedLocales(Set.of(locales));
+        rep.setDefaultLocale("en");
+        resource().update(rep);
     }
 
     private static RealmRepresentation configured(boolean withUserStorage, boolean withDefaultRequiredActions) {
