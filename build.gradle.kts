@@ -69,6 +69,7 @@ testing {
                     // The tests run the jar, so a new jar must run them again.
                     inputs.files(tasks.jar)
                     systemProperty("keycloak.version", testKeycloakVersion.get())
+                    systemProperty("postgres.version", libs.versions.postgres.image.get())
                     systemProperty("provider.jar", tasks.jar.get().archiveFile.get().asFile.absolutePath)
                     // A hung container call must fail the build, not block it.
                     // The CI jobs that run the tests have a longer limit, so this one fails first and the report shows why.

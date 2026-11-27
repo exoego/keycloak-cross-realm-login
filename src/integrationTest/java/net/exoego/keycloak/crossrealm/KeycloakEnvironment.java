@@ -19,7 +19,7 @@ final class KeycloakEnvironment {
 
     private static final Network NETWORK = Network.newNetwork();
 
-    static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:18")
+    static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:" + System.getProperty("postgres.version"))
             .withNetwork(NETWORK)
             .withNetworkAliases("postgres")
             .withDatabaseName("keycloak")
