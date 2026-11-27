@@ -24,8 +24,16 @@ final class TempEntryRealm implements AutoCloseable {
     private final RealmResource realm;
 
     TempEntryRealm(boolean withUserStorage) {
+        this(withUserStorage, false);
+    }
+
+    /** With the default required actions, the realm is like one made in the admin console. */
+    TempEntryRealm(boolean withUserStorage, boolean withDefaultRequiredActions) {
         RealmRepresentation rep = read();
         rep.setRealm(name);
+        if (withDefaultRequiredActions) {
+            rep.setRequiredActions(null);
+        }
         if (!withUserStorage) {
             rep.setComponents(null);
         }

@@ -50,10 +50,7 @@ final class Browser implements AutoCloseable {
      * With a valid SSO session of this browser, the page ends on the redirect to the client.
      */
     void open(String realm, String clientId) {
-        page.navigate(KeycloakEnvironment.realmUrl(realm) + "/protocol/openid-connect/auth"
-                + "?response_type=code&scope=openid&state=test"
-                + "&client_id=" + encode(clientId)
-                + "&redirect_uri=" + encode(REDIRECT_URI));
+        open(realm, clientId, "");
     }
 
     /** Runs JavaScript in the page of this browser and returns the result. */
@@ -76,6 +73,28 @@ final class Browser implements AutoCloseable {
             waitForEnd(ERROR_SELECTOR);
         }
         return result();
+    }
+
+    /**
+     * Logs in with kc_action=UPDATE_PASSWORD, then types the new password twice on the page that Keycloak shows.
+     * The result is the page where the login ends.
+     */
+    LoginResult loginAndUpdatePassword(String realm, String clientId, String username, String password,
+            String newPassword) {
+        open(realm, clientId, "&kc_action=UPDATE_PASSWORD");
+        page.locator("#username").fill(username);
+        page.locator("#password").fill(password);
+        page.locator("#kc-login").click();
+        page.locator("#password-new").fill(newPassword);
+        page.locator("#password-confirm").fill(newPassword);
+        page.locator("#kc-submit").click();
+        waitForEnd(ERROR_SELECTOR);
+        return result();
+    }
+
+    /** The URL of the page of this browser. */
+    String url() {
+        return page.url();
     }
 
     /** Exchanges the code at the token endpoint of the realm. The client must be a public one. */
@@ -106,6 +125,14 @@ final class Browser implements AutoCloseable {
     @Override
     public void close() {
         context.close();
+    }
+
+    private void open(String realm, String clientId, String extraQuery) {
+        page.navigate(KeycloakEnvironment.realmUrl(realm) + "/protocol/openid-connect/auth"
+                + "?response_type=code&scope=openid&state=test"
+                + "&client_id=" + encode(clientId)
+                + "&redirect_uri=" + encode(REDIRECT_URI)
+                + extraQuery);
     }
 
     /** Waits until the page is the redirect to the client, or shows the given element. */

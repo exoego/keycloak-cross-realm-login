@@ -95,6 +95,23 @@ final class CrossRealmUser extends AbstractUserAdapter {
         return attributes;
     }
 
+    // Keycloak adds and removes required actions of a user during a login. A proxy user has none and keeps none.
+    @Override
+    public void addRequiredAction(String action) {
+    }
+
+    @Override
+    public void removeRequiredAction(String action) {
+    }
+
+    @Override
+    public void addRequiredAction(RequiredAction action) {
+    }
+
+    @Override
+    public void removeRequiredAction(RequiredAction action) {
+    }
+
     @Override
     public SubjectCredentialManager credentialManager() {
         return ReadOnlyCredentialManager.INSTANCE;

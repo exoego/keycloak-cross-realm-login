@@ -19,6 +19,7 @@ import org.keycloak.representations.idm.UserRepresentation;
 import static net.exoego.keycloak.crossrealm.KeycloakEnvironment.KEYCLOAK;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -63,8 +64,6 @@ class PasswordLoginIT {
         }
     }
 
-    // It does not assert on time, because that would be flaky. It prints the numbers for a person to read.
-    // Bob has one candidate and alice has two, so the numbers also show the cost of each hash.
     @Test
     void anEmptyPasswordFailsLikeAWrongOne() {
         try (Browser browser = new Browser()) {
@@ -191,6 +190,61 @@ class PasswordLoginIT {
         assertEquals(0, Database.count("fed_user_credential", "user_id = '" + proxyId + "'"));
         assertEquals(0, Database.count("fed_user_credential", "true"));
         assertEquals(List.of(), user.credentials());
+    }
+
+    @Test
+    void aLoginAtAnEntryRealmWithTheDefaultRequiredActionsWorks() throws Exception {
+        try (TempEntryRealm entry = new TempEntryRealm(true, true)) {
+            IdToken token = loginAt(entry.name(), "alice", "alice-password-a");
+
+            assertEquals("alice", token.preferredUsername());
+            assertEquals(proxyId(entry.name(), realmId("home-a"), homeUserId("home-a", "alice")), token.subject());
+        }
+    }
+
+    @Test
+    void aUserWithAnUnverifiedEmailLogsInAtAnEntryRealmThatVerifiesEmail() throws Exception {
+        String username = "unverified-" + UUID.randomUUID();
+        try (TempEntryRealm entry = new TempEntryRealm(true, true); TempRealm home = new TempRealm()) {
+            RealmRepresentation realm = entry.resource().toRepresentation();
+            realm.setVerifyEmail(true);
+            entry.resource().update(realm);
+            String userId = home.addUser(username, "the-password", true);
+            UserResource homeUser = home.resource().users().get(userId);
+            UserRepresentation rep = homeUser.toRepresentation();
+            rep.setEmailVerified(false);
+            rep.setFirstName("First");
+            rep.setLastName("Last");
+            homeUser.update(rep);
+
+            IdToken token = loginAt(entry.name(), username, "the-password");
+
+            assertEquals(username, token.preferredUsername());
+            assertEquals(proxyId(entry.name(), home.id(), userId), token.subject());
+        }
+    }
+
+    @Test
+    void aRequiredActionFromTheBrowserCannotStoreACredentialOfTheUser() {
+        try (TempEntryRealm entry = new TempEntryRealm(true, true); Browser browser = new Browser();
+                Browser direct = new Browser()) {
+            String entryId = entry.resource().toRepresentation().getId();
+
+            LoginResult result = browser.loginAndUpdatePassword(entry.name(), CLIENT, "alice", "alice-password-a",
+                    "new-password");
+
+            assertFalse(browser.url().contains("kc_action_status=success"));
+            assertFalse(result.isLoginForm());
+            assertEquals("The user has no credentials in this realm", result.error());
+            assertEquals(0, Database.count("fed_user_credential", "realm_id = '" + entryId + "'"));
+            assertEquals(0, Database.count("credential", "user_id like 'f:%'"));
+            assertEquals(0, Database.count("credential",
+                    "user_id in (select id from user_entity where realm_id = '" + entryId + "')"));
+            LoginResult withNewPassword = direct.login("home-a", "test-client", "alice", "new-password");
+            assertTrue(withNewPassword.isLoginForm());
+            assertEquals(INVALID, withNewPassword.error());
+            assertNotNull(direct.login("home-a", "test-client", "alice", "alice-password-a").code());
+        }
     }
 
     @Test
