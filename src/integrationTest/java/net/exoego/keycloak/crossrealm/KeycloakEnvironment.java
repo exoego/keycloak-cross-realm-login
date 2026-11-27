@@ -2,6 +2,7 @@ package net.exoego.keycloak.crossrealm;
 
 import java.io.File;
 import java.util.List;
+import java.util.Map;
 
 import dasniko.testcontainers.keycloak.KeycloakContainer;
 import org.testcontainers.containers.Network;
@@ -26,7 +27,10 @@ final class KeycloakEnvironment {
             .withNetworkAliases("postgres")
             .withDatabaseName("keycloak")
             .withUsername("keycloak")
-            .withPassword("keycloak");
+            .withPassword("keycloak")
+            // The tests do not need the data after the run. The image keeps its data under this directory.
+            .withTmpFs(Map.of("/var/lib/postgresql", "rw"))
+            .withCommand("postgres", "-c", "fsync=off", "-c", "synchronous_commit=off", "-c", "full_page_writes=off");
 
     static final KeycloakContainer KEYCLOAK = Coverage.measure(Coverage.keycloak("quay.io/keycloak/keycloak:" + KEYCLOAK_VERSION))
             .withNetwork(NETWORK)
