@@ -1,0 +1,15 @@
+{
+  "id": "excluded-realm-id",
+  "realm": "home-excluded",
+  "displayName": "Home excluded",
+  "enabled": true,
+  "users": [
+    {
+      "username": "alice",
+      "email": "alice@excluded.example.com",
+      "emailVerified": true,
+      "enabled": true,
+      "credentials": [{ "type": "password", "value": "alice-password-excluded" }]
+    }
+  ]
+}

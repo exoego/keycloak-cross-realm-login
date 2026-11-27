@@ -1,0 +1,14 @@
+{
+  "realm": "home-disabled",
+  "displayName": "Home disabled",
+  "enabled": false,
+  "users": [
+    {
+      "username": "alice",
+      "email": "alice@disabled.example.com",
+      "emailVerified": true,
+      "enabled": true,
+      "credentials": [{ "type": "password", "value": "alice-password-disabled" }]
+    }
+  ]
+}

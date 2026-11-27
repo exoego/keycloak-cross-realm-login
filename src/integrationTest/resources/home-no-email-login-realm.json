@@ -1,0 +1,14 @@
+{
+  "realm": "home-no-email-login",
+  "displayName": "Home without email login",
+  "enabled": true,
+  "loginWithEmailAllowed": false,
+  "users": [
+    {
+      "username": "erin",
+      "email": "erin@home-no-email-login.example.com",
+      "emailVerified": true,
+      "enabled": true
+    }
+  ]
+}

@@ -16,6 +16,7 @@
       "firstName": "Alice",
       "lastName": "Baker",
       "enabled": true,
+      "emailVerified": true,
       "credentials": [{ "type": "password", "value": "alice-password-b" }]
     }
   ]
