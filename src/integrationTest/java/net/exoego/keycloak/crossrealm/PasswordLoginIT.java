@@ -13,6 +13,15 @@ import org.keycloak.representations.idm.RealmRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
 
 import static net.exoego.keycloak.crossrealm.KeycloakEnvironment.KEYCLOAK;
+import static net.exoego.keycloak.crossrealm.Logins.CLIENT;
+import static net.exoego.keycloak.crossrealm.Logins.STORAGE_ID;
+import static net.exoego.keycloak.crossrealm.Logins.USER_STORAGE;
+import static net.exoego.keycloak.crossrealm.Logins.assertRejected;
+import static net.exoego.keycloak.crossrealm.Logins.logIn;
+import static net.exoego.keycloak.crossrealm.Logins.proxyId;
+import static net.exoego.keycloak.crossrealm.Logins.proxyIdOf;
+import static net.exoego.keycloak.crossrealm.Logins.realmId;
+import static net.exoego.keycloak.crossrealm.Logins.userId;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -22,11 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class PasswordLoginIT {
 
     private static final String ENTRY = "entry";
-    private static final String CLIENT = "entry-client";
-    private static final String USER_STORAGE = "org.keycloak.storage.UserStorageProvider";
-    private static final String STORAGE_ID = "cross-realm-users";
     private static final String AUTHENTICATOR_ID = "cross-realm-password";
-    private static final String INVALID = "Invalid username or password.";
 
     @Test
     void aliceLogsInWithThePasswordOfHomeA() throws Exception {
@@ -35,7 +40,7 @@ class PasswordLoginIT {
         assertEquals("alice", token.preferredUsername());
         assertEquals("alice@home-a.example.com", token.email());
         assertEquals(KeycloakEnvironment.realmUrl(ENTRY), token.issuer());
-        assertEquals(proxyIdOf("home-a", "alice"), token.subject());
+        assertEquals(proxyIdOf(ENTRY, "home-a", "alice"), token.subject());
     }
 
     @Test
@@ -43,7 +48,7 @@ class PasswordLoginIT {
         IdToken token = loginAtEntry("alice", "alice-password-b");
 
         assertEquals("alice", token.preferredUsername());
-        assertEquals(proxyIdOf("home-b", "alice"), token.subject());
+        assertEquals(proxyIdOf(ENTRY, "home-b", "alice"), token.subject());
     }
 
     @Test
@@ -110,7 +115,7 @@ class PasswordLoginIT {
         IdToken token = loginAtEntry("alice@home-a.example.com", "alice-password-a");
 
         assertEquals("alice", token.preferredUsername());
-        assertEquals(proxyIdOf("home-a", "alice"), token.subject());
+        assertEquals(proxyIdOf(ENTRY, "home-a", "alice"), token.subject());
     }
 
     @Test
@@ -133,7 +138,7 @@ class PasswordLoginIT {
 
         Database.assertNothingStoredFor(realmId(ENTRY));
         // The check can see a user that is stored.
-        assertEquals(1, Database.count("credential", "user_id = '" + homeUserId("home-a", "alice") + "'"));
+        assertEquals(1, Database.count("credential", "user_id = '" + userId("home-a", "alice") + "'"));
     }
 
     @Test
@@ -172,10 +177,10 @@ class PasswordLoginIT {
     @Test
     void aLoginAtAnEntryRealmWithTheDefaultRequiredActionsWorks() throws Exception {
         try (TempEntryRealm entry = TempEntryRealm.withDefaultRequiredActions()) {
-            IdToken token = loginAt(entry.name(), "alice", "alice-password-a");
+            IdToken token = logIn(entry.name(), "alice", "alice-password-a");
 
             assertEquals("alice", token.preferredUsername());
-            assertEquals(proxyId(entry.name(), realmId("home-a"), homeUserId("home-a", "alice")), token.subject());
+            assertEquals(proxyId(entry.name(), realmId("home-a"), userId("home-a", "alice")), token.subject());
         }
     }
 
@@ -194,7 +199,7 @@ class PasswordLoginIT {
             rep.setLastName("Last");
             homeUser.update(rep);
 
-            IdToken token = loginAt(entry.name(), username, "the-password");
+            IdToken token = logIn(entry.name(), username, "the-password");
 
             assertEquals(username, token.preferredUsername());
             assertEquals(proxyId(entry.name(), home.id(), userId), token.subject());
@@ -227,7 +232,7 @@ class PasswordLoginIT {
             String userId = home.addUser(username, "the-password", true);
             home.resource().organizations().get(organizationId).members().addMember(userId).close();
 
-            IdToken token = loginAt(entry.name(), username, "the-password");
+            IdToken token = logIn(entry.name(), username, "the-password");
 
             assertEquals(username, token.preferredUsername());
             assertEquals(proxyId(entry.name(), home.id(), userId), token.subject());
@@ -281,44 +286,7 @@ class PasswordLoginIT {
         }
     }
 
-    private static void assertRejected(LoginResult result) {
-        assertTrue(result.isLoginForm());
-        assertEquals(INVALID, result.error());
-    }
-
     private static IdToken loginAtEntry(String identifier, String password) throws Exception {
-        return loginAt(ENTRY, identifier, password);
-    }
-
-    private static IdToken loginAt(String realm, String identifier, String password) throws Exception {
-        try (Browser browser = new Browser()) {
-            return browser.exchange(realm, CLIENT, browser.login(realm, CLIENT, identifier, password).code());
-        }
-    }
-
-    private static String proxyIdOf(String homeRealm, String username) {
-        return proxyId(ENTRY, realmId(homeRealm), homeUserId(homeRealm, username));
-    }
-
-    private static String proxyId(String entryRealm, String homeRealmId, String homeUserId) {
-        return "f:" + componentId(entryRealm) + ":" + homeRealmId + ":" + homeUserId;
-    }
-
-    private static String componentId(String entryRealm) {
-        RealmResource entry = KEYCLOAK.getKeycloakAdminClient().realm(entryRealm);
-        return entry.components().query(realmId(entryRealm), USER_STORAGE).stream()
-                .filter(component -> STORAGE_ID.equals(component.getProviderId()))
-                .findFirst().orElseThrow().getId();
-    }
-
-    private static String realmId(String realm) {
-        return KEYCLOAK.getKeycloakAdminClient().realm(realm).toRepresentation().getId();
-    }
-
-    private static String homeUserId(String realm, String username) {
-        List<UserRepresentation> users = KEYCLOAK.getKeycloakAdminClient().realm(realm).users()
-                .searchByUsername(username, true);
-        assertEquals(1, users.size());
-        return users.get(0).getId();
+        return logIn(ENTRY, identifier, password);
     }
 }

@@ -32,15 +32,6 @@ repositories {
     mavenCentral()
 }
 
-// Test-only provider with a REST endpoint for the integration tests. It is never published.
-val testProvider = sourceSets.create("testProvider")
-val testProviderJar = tasks.register<Jar>("testProviderJar") {
-    archiveClassifier.set("test-provider")
-    // Away from build/libs, so nobody installs it with the main jar.
-    destinationDirectory.set(layout.buildDirectory.dir("test-libs"))
-    from(testProvider.output)
-}
-
 jacoco {
     toolVersion = libs.versions.jacoco.get()
 }
@@ -56,9 +47,6 @@ dependencies {
     testImplementation(platform(libs.keycloak.parent))
     testImplementation(libs.bundles.keycloak.provided)
     testImplementation(libs.archunit)
-    "testProviderCompileOnly"(platform(libs.keycloak.parent))
-    "testProviderCompileOnly"(libs.bundles.keycloak.provided)
-    "testProviderCompileOnly"(sourceSets.main.get().output)
 }
 
 // An empty value, as from a CI matrix row without it, means the version of the catalog.
@@ -103,7 +91,7 @@ testing {
             targets.all {
                 testTask.configure {
                     // The tests run the jar, so a new jar must run them again.
-                    inputs.files(tasks.jar, testProviderJar)
+                    inputs.files(tasks.jar)
                     systemProperty("keycloak.version", testKeycloakVersion.get())
                     systemProperty("postgres.version", libs.versions.postgres.image.get())
                     // The installBrowser task is the one place that downloads the browser.
@@ -112,7 +100,6 @@ testing {
                     // Shows the browser window while debugging. Run with -Pheaded.
                     systemProperty("browser.headed", providers.gradleProperty("headed").isPresent)
                     systemProperty("provider.jar", tasks.jar.get().archiveFile.get().asFile.absolutePath)
-                    systemProperty("test.provider.jar", testProviderJar.get().archiveFile.get().asFile.absolutePath)
                     // A hung container call must fail the build, not block it.
                     // The CI jobs that run the tests have a longer limit, so this one fails first and the report shows why.
                     timeout.set(Duration.ofMinutes(30))
@@ -202,19 +189,14 @@ tasks.check {
     dependsOn(tasks.jacocoTestReport)
 }
 
-// The test provider and the Keycloak libraries must stay out of the jar that users install.
+// The Keycloak libraries must stay out of the jar that users install.
 val checkMainJar = tasks.register("checkMainJar") {
     val jar = tasks.jar.flatMap { it.archiveFile }
-    val testProviderClasses = testProvider.output.classesDirs
     inputs.file(jar)
-    inputs.files(testProviderClasses)
     doLast {
-        val testProviderEntries = testProviderClasses.files.flatMap { dir ->
-            dir.walkTopDown().filter { it.isFile && it.extension == "class" }.map { it.relativeTo(dir).invariantSeparatorsPath }
-        }.toSet()
         val unwanted = ZipFile(jar.get().asFile).use { zip ->
             zip.entries().asSequence().map { it.name }
-                .filter { it in testProviderEntries || it.startsWith("org/keycloak/") }
+                .filter { it.startsWith("org/keycloak/") }
                 .toList()
         }
         check(unwanted.isEmpty()) { "The main jar holds entries that must not ship: $unwanted" }

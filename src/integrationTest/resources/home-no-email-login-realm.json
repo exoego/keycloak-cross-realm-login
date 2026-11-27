@@ -8,7 +8,8 @@
       "username": "erin",
       "email": "erin@home-no-email-login.example.com",
       "emailVerified": true,
-      "enabled": true
+      "enabled": true,
+      "credentials": [{ "type": "password", "value": "erin-password" }]
     }
   ]
 }

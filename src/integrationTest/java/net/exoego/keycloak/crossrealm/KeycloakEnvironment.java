@@ -15,7 +15,6 @@ final class KeycloakEnvironment {
 
     static final String PROVIDERS_DIR = "/opt/keycloak/providers";
     static final File PROVIDER_JAR = new File(System.getProperty("provider.jar"));
-    static final File TEST_PROVIDER_JAR = new File(System.getProperty("test.provider.jar"));
     // The ID that home-excluded-realm.json gives to its realm. Realm IDs are random otherwise.
     static final String EXCLUDED_REALM_ID = "excluded-realm-id";
     static final String KEYCLOAK_VERSION = System.getProperty("keycloak.version");
@@ -31,7 +30,7 @@ final class KeycloakEnvironment {
 
     static final KeycloakContainer KEYCLOAK = Coverage.measure(Coverage.keycloak("quay.io/keycloak/keycloak:" + KEYCLOAK_VERSION))
             .withNetwork(NETWORK)
-            .withProviderLibsFrom(List.of(PROVIDER_JAR, TEST_PROVIDER_JAR))
+            .withProviderLibsFrom(List.of(PROVIDER_JAR))
             .withRealmImportFiles("/entry-realm.json", "/home-a-realm.json", "/home-b-realm.json",
                     "/home-no-email-login-realm.json",
                     "/home-disabled-realm.json", "/home-excluded-realm.json")
