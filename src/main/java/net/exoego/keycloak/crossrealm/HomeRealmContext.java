@@ -12,6 +12,14 @@ final class HomeRealmContext {
     private HomeRealmContext() {
     }
 
+    static void run(KeycloakSession session, RealmModel homeRealm, Runnable block) {
+        Objects.requireNonNull(block, "block");
+        call(session, homeRealm, () -> {
+            block.run();
+            return null;
+        });
+    }
+
     static <T> T call(KeycloakSession session, RealmModel homeRealm, Supplier<T> block) {
         Objects.requireNonNull(session, "session");
         Objects.requireNonNull(homeRealm, "homeRealm");

@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import jakarta.ws.rs.core.MultivaluedMap;
@@ -18,7 +19,6 @@ import org.keycloak.authentication.authenticators.util.AuthenticatorUtils;
 import org.keycloak.component.ComponentModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
-import org.keycloak.models.UserCredentialModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.credential.PasswordCredentialModel;
 import org.keycloak.models.utils.FormMessage;
@@ -50,10 +50,15 @@ final class CrossRealmPasswordAuthenticator implements Authenticator {
         }
         forgetMatches(context);
         String identifier = form.getFirst(AuthenticationManager.FORM_USERNAME);
-        List<Candidate> matches = matches(context, identifier, form.getFirst(CredentialRepresentation.PASSWORD));
+        HomeRealmLogins logins = logins(context);
+        List<HomeAttempt> attempts = attempts(context, logins, identifier,
+                form.getFirst(CredentialRepresentation.PASSWORD));
+        List<Candidate> matches = attempts.stream().filter(HomeAttempt::matches).map(HomeAttempt::candidate).toList();
         if (matches.isEmpty()) {
+            logins.recordFailures(attempts, identifier);
             invalidCredentials(context);
         } else if (matches.size() == 1) {
+            logins.recordSuccess(matches.get(0));
             context.setUser(proxyUser(context, matches.get(0)));
             context.success(PasswordCredentialModel.TYPE);
         } else {
@@ -102,10 +107,14 @@ final class CrossRealmPasswordAuthenticator implements Authenticator {
             return;
         }
         UserModel proxy = findProxy(context, matches.get(index));
-        if (proxy == null || !proxy.isEnabled()) {
+        Optional<Candidate> candidate = context.getSession().getProvider(CandidateLookup.class)
+                .find(context.getRealm(), matches.get(index).realmId(), matches.get(index).userId());
+        HomeRealmLogins logins = logins(context);
+        if (proxy == null || !proxy.isEnabled() || candidate.isEmpty() || logins.isLockedOut(candidate.get())) {
             invalidCredentials(context);
             return;
         }
+        logins.recordSuccess(candidate.get());
         context.setUser(proxy);
         context.success(PasswordCredentialModel.TYPE);
     }
@@ -132,26 +141,21 @@ final class CrossRealmPasswordAuthenticator implements Authenticator {
         context.failureChallenge(AuthenticationFlowError.INVALID_CREDENTIALS, challenge);
     }
 
-    private static List<Candidate> matches(AuthenticationFlowContext context, String identifier, String password) {
-        KeycloakSession session = context.getSession();
+    private static HomeRealmLogins logins(AuthenticationFlowContext context) {
+        return new HomeRealmLogins(context.getSession(), context.getRealm(), context.getConnection());
+    }
+
+    private static List<HomeAttempt> attempts(AuthenticationFlowContext context, HomeRealmLogins logins,
+            String identifier, String password) {
         boolean hasPassword = password != null && !password.isEmpty();
         List<Candidate> candidates = hasPassword
-                ? session.getProvider(CandidateLookup.class).findByIdentifier(context.getRealm(), identifier)
+                ? context.getSession().getProvider(CandidateLookup.class).findByIdentifier(context.getRealm(), identifier)
                 : List.of();
         if (candidates.isEmpty()) {
             // The answer must not come sooner when nobody has the identifier.
             AuthenticatorUtils.dummyHash(context);
         }
-        return candidates.stream().filter(candidate -> matches(session, candidate, password)).toList();
-    }
-
-    private static boolean matches(KeycloakSession session, Candidate candidate, String password) {
-        return HomeRealmContext.call(session, candidate.realm(), () -> {
-            UserModel user = candidate.user();
-            boolean valid = user.credentialManager().isValid(UserCredentialModel.password(password));
-            // The check accepts a disabled user. It runs first, so a disabled user costs the same time.
-            return valid && user.isEnabled();
-        });
+        return candidates.stream().map(candidate -> logins.check(candidate, password)).toList();
     }
 
     private static UserModel proxyUser(AuthenticationFlowContext context, Candidate candidate) {
