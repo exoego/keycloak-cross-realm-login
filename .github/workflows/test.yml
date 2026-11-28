@@ -50,7 +50,7 @@ jobs:
 
       - name: Install the display tools
         if: matrix.chooser
-        run: sudo apt-get install -y xvfb xdotool x11-utils
+        run: sudo apt-get install -y xvfb xdotool imagemagick
 
       - name: Install the browser
         run: ./gradlew installBrowser -PplaywrightDeps ${{ matrix.chooser && '-Pchooser' || '' }}
@@ -67,12 +67,9 @@ jobs:
           KEYCLOAK_VERSION: ${{ matrix.keycloak }}
         run: ${{ matrix.chooser && 'xvfb-run -a -s "-screen 0 1280x1024x24" ' || '' }}./gradlew check -PtestJavaVersion=${{ matrix.java }} -PtestKeycloakVersion="$KEYCLOAK_VERSION" ${{ matrix.chooser && '-Pchooser' || '' }}
 
-      - name: Upload debug
+      - name: Show the chooser result
         if: always() && matrix.chooser
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: dbg
-          path: /tmp/dbg
+        run: grep -o '<testcase name="theChooser[^>]*>' build/test-results/integrationTest/TEST-net.exoego.keycloak.crossrealm.PasskeysInSeveralRealmsIT.xml; grep -c '<skipped' build/test-results/integrationTest/TEST-net.exoego.keycloak.crossrealm.PasskeysInSeveralRealmsIT.xml || true
 
       - name: Upload coverage to Codecov
         if: matrix.java == 21 && matrix.keycloak == ''

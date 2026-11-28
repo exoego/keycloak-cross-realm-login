@@ -36,13 +36,36 @@ final class PasskeyChooser {
                   delay 0.5
                 end repeat
               end tell
-              error "The passkey chooser did not show two passkeys of " & userName
+              set seen to ""
+              tell application "System Events"
+                set seen to "processes " & ((name of every process whose name contains "Chrome") as text) & linefeed
+                set seen to seen & "front " & (name of first process whose frontmost is true) & linefeed
+              end tell
+              tell application "System Events" to tell process "Google Chrome for Testing"
+                set seen to seen & "windows " & (count of windows) & linefeed
+                repeat with n from 1 to count of windows
+                  try
+                    set seen to seen & "window " & (name of window n) & linefeed
+                    set items_ to entire contents of window n
+                    repeat with i from 1 to count of items_
+                      try
+                        if (role of (item i of items_)) is "AXButton" then set seen to seen & "  button " & (name of (item i of items_)) & linefeed
+                      end try
+                    end repeat
+                  on error m
+                    set seen to seen & "  error " & m & linefeed
+                  end try
+                end repeat
+              end tell
+              error "The passkey chooser did not show two passkeys of " & userName & linefeed & seen
             end run
             """;
 
     private static final String ROW_X = "650";
     private static final String[] ROW_Y = {"345", "410"};
-    private static final long LINUX_WAIT_MILLIS = 3000;
+    private static final String DIALOG_PIXEL = "1x1+840+270";
+    private static final long LINUX_WAIT_MILLIS = 15000;
+    private static final long LINUX_POLL_MILLIS = 200;
     private static final long POINTER_WAIT_MILLIS = 500;
 
     private PasskeyChooser() {
@@ -53,8 +76,7 @@ final class PasskeyChooser {
         if (os.contains("mac")) {
             run(List.of("osascript", "-", username, Integer.toString(index)), MAC_SCRIPT);
         } else if (os.contains("linux")) {
-            run(List.of("bash", "-c", "mkdir -p /tmp/dbg; for t in 0 1 2 3; do xwininfo -root -tree > /tmp/dbg/tree$t.txt 2>&1; sleep 1; done; true"), null);
-            pause(LINUX_WAIT_MILLIS);
+            waitForDialogOnLinux();
             run(List.of("xdotool", "mousemove", ROW_X, ROW_Y[index]), null);
             pause(POINTER_WAIT_MILLIS);
             run(List.of("xdotool", "key", "Return"), null);
@@ -63,7 +85,17 @@ final class PasskeyChooser {
         }
     }
 
-    private static void run(List<String> command, String input) {
+    private static void waitForDialogOnLinux() {
+        long deadline = System.nanoTime() + LINUX_WAIT_MILLIS * 1_000_000;
+        while (!run(List.of("import", "-window", "root", "-crop", DIALOG_PIXEL, "txt:-"), null).contains("#FFFFFF")) {
+            if (System.nanoTime() > deadline) {
+                throw new IllegalStateException("The passkey chooser did not show up on the display");
+            }
+            pause(LINUX_POLL_MILLIS);
+        }
+    }
+
+    private static String run(List<String> command, String input) {
         try {
             Process process = new ProcessBuilder(command).redirectErrorStream(true).start();
             try (var stdin = process.getOutputStream()) {
@@ -76,6 +108,7 @@ final class PasskeyChooser {
             if (exit != 0) {
                 throw new IllegalStateException(command + " exited with " + exit + ": " + output);
             }
+            return output;
         } catch (IOException e) {
             throw new IllegalStateException("Cannot run " + command, e);
         } catch (InterruptedException e) {
