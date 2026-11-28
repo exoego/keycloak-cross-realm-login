@@ -2,7 +2,7 @@ package net.exoego.keycloak.crossrealm;
 
 import org.keycloak.representations.idm.RealmRepresentation;
 
-/** A home realm with a random name that exists for one test. */
+/** A home realm with a random name for one test. */
 final class TempRealm extends TempRealmBase {
 
     TempRealm() {
