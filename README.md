@@ -48,6 +48,10 @@ It checks user verification when its own policy or the policy of the entry realm
 A failed passkey does not count as a failed login for the brute force protection.
 It writes an event in the home realm.
 
+Keycloak names a passkey by the username.
+A person with the same username in two home realms sees two entries that look the same in the browser.
+A home realm can change that name with its own login theme, in the template `webauthn-register.ftl`.
+
 ## Configuration
 
 The extension has its own SPI, `cross-realm-login`, with one provider, `default`.

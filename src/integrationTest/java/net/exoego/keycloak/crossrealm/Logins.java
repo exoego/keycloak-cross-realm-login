@@ -16,6 +16,7 @@ final class Logins {
     static final String STORAGE_ID = "cross-realm-users";
 
     private static final String INVALID = "Invalid username or password.";
+    private static final String HOME_CLIENT = "home-client";
 
     private Logins() {
     }
@@ -24,6 +25,17 @@ final class Logins {
         try (Browser browser = new Browser()) {
             return browser.exchange(realm, CLIENT, browser.login(realm, CLIENT, identifier, password).code());
         }
+    }
+
+    static String registerPasskey(TempRealm home, Browser browser, String username, String password) {
+        home.addPublicClient(HOME_CLIENT);
+        home.allowPasskeys();
+        String userId = home.addUser(username, password, true);
+        home.setName(userId, "Pass", "Key");
+        home.requireAction(userId, "webauthn-register-passwordless");
+        browser.loginAndRegisterPasskey(home.name(), HOME_CLIENT, username, password).code();
+        browser.clearCookies();
+        return userId;
     }
 
     static void assertRejected(String realm, String identifier, String password) {

@@ -117,7 +117,7 @@ final class Browser implements AutoCloseable {
         context.clearCookies();
     }
 
-    void addVirtualAuthenticator() {
+    VirtualAuthenticator addVirtualAuthenticator() {
         CDPSession session = context.newCDPSession(page);
         session.send("WebAuthn.enable");
         JsonObject options = new JsonObject();
@@ -129,7 +129,8 @@ final class Browser implements AutoCloseable {
         options.addProperty("automaticPresenceSimulation", true);
         JsonObject params = new JsonObject();
         params.add("options", options);
-        session.send("WebAuthn.addVirtualAuthenticator", params);
+        String id = session.send("WebAuthn.addVirtualAuthenticator", params).get("authenticatorId").getAsString();
+        return new VirtualAuthenticator(session, id);
     }
 
     LoginResult loginWithoutUsername(String realm, String clientId, String password) {
