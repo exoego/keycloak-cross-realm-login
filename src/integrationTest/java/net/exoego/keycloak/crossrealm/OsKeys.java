@@ -32,12 +32,12 @@ final class OsKeys {
                 + " pgrep -a openbox; xwd -root -silent | convert xwd:- /tmp/dbg/" + tag + ".png) > /tmp/dbg/" + tag + ".txt 2>&1; true"));
     }
 
-    static void next() {
-        press("Tab", 48);
-        pause(KEY_GAP_MILLIS);
-    }
-
-    static void enter() {
+    static void choose(int index) {
+        int tabs = isLinux() ? index + 1 : index;
+        for (int i = 0; i < tabs; i++) {
+            press("Tab", 48);
+            pause(KEY_GAP_MILLIS);
+        }
         press("Return", 36);
         pause(1000);
         if (isLinux()) {
