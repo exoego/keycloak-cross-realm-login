@@ -17,7 +17,7 @@ class ArchitectureTest {
 
     @Test
     void onlyHomeRealmContextSetsTheContextRealm() {
-        noClasses().that().doNotHaveFullyQualifiedName(HomeRealmContext.class.getName())
+        noClasses().that().doNotBelongToAnyOf(HomeRealmContext.class)
                 .should().accessTargetWhere(describe("it sets the context realm",
                         access -> access.getTargetOwner().isAssignableTo(KeycloakContext.class)
                                 && access.getName().equals("setRealm")))
