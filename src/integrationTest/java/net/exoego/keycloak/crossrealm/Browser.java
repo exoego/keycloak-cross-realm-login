@@ -324,6 +324,10 @@ final class Browser implements AutoCloseable {
     }
 
     IdToken exchange(String realm, String clientId, String code) throws IOException, InterruptedException {
+        return exchangeTokens(realm, clientId, code).idToken();
+    }
+
+    Tokens exchangeTokens(String realm, String clientId, String code) throws IOException, InterruptedException {
         String body = Map.of("grant_type", "authorization_code",
                         "code", code,
                         "client_id", clientId,
@@ -340,9 +344,12 @@ final class Browser implements AutoCloseable {
         if (response.statusCode() != 200) {
             throw new AssertionError("The token endpoint answered " + response.statusCode() + ": " + response.body());
         }
-        String idToken = (String) JSON.readValue(response.body(), new TypeReference<Map<String, Object>>() { })
-                .get("id_token");
-        String payload = idToken.split("\\.", -1)[1];
+        Map<String, Object> answer = JSON.readValue(response.body(), new TypeReference<Map<String, Object>>() { });
+        return new Tokens(claimsOf((String) answer.get("id_token")), claimsOf((String) answer.get("access_token")));
+    }
+
+    private static IdToken claimsOf(String jwt) throws IOException {
+        String payload = jwt.split("\\.", -1)[1];
         byte[] json = Base64.getUrlDecoder().decode(payload);
         return new IdToken(JSON.readValue(json, new TypeReference<Map<String, Object>>() { }));
     }

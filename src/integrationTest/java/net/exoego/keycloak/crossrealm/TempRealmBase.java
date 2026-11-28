@@ -1,6 +1,7 @@
 package net.exoego.keycloak.crossrealm;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import jakarta.ws.rs.core.Response;
@@ -10,9 +11,12 @@ import org.keycloak.admin.client.resource.RealmResource;
 import org.keycloak.representations.idm.ClientRepresentation;
 import org.keycloak.representations.idm.CredentialRepresentation;
 import org.keycloak.representations.idm.EventRepresentation;
+import org.keycloak.representations.idm.GroupRepresentation;
 import org.keycloak.representations.idm.OrganizationDomainRepresentation;
 import org.keycloak.representations.idm.OrganizationRepresentation;
+import org.keycloak.representations.idm.ProtocolMapperRepresentation;
 import org.keycloak.representations.idm.RealmRepresentation;
+import org.keycloak.representations.idm.RoleRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
 
 import static net.exoego.keycloak.crossrealm.KeycloakEnvironment.ADMIN;
@@ -77,6 +81,51 @@ abstract class TempRealmBase implements AutoCloseable {
         client.setRedirectUris(List.of(Browser.REDIRECT_URI));
         try (Response response = realm.clients().create(client)) {
             assertEquals(201, response.getStatus(), response.readEntity(String.class));
+        }
+    }
+
+    final void addUserAttributeMapper(String clientId, String userAttribute, String claimName) {
+        addMapper(clientId, claimName, "oidc-usermodel-attribute-mapper", Map.of(
+                "user.attribute", userAttribute,
+                "claim.name", claimName,
+                "jsonType.label", "String",
+                "id.token.claim", "true",
+                "access.token.claim", "false"));
+    }
+
+    final void addGroupMembershipMapper(String clientId, String claimName) {
+        addMapper(clientId, claimName, "oidc-group-membership-mapper", Map.of(
+                "claim.name", claimName,
+                "full.path", "false",
+                "id.token.claim", "true",
+                "access.token.claim", "true"));
+    }
+
+    private void addMapper(String clientId, String name, String type, Map<String, String> config) {
+        String id = realm.clients().findByClientId(clientId).get(0).getId();
+        ProtocolMapperRepresentation mapper = new ProtocolMapperRepresentation();
+        mapper.setName(name);
+        mapper.setProtocol("openid-connect");
+        mapper.setProtocolMapper(type);
+        mapper.setConfig(config);
+        try (Response response = realm.clients().get(id).getProtocolMappers().createMapper(mapper)) {
+            assertEquals(201, response.getStatus(), response.readEntity(String.class));
+        }
+    }
+
+    final void giveRealmRole(String userId, String roleName) {
+        RoleRepresentation role = new RoleRepresentation();
+        role.setName(roleName);
+        realm.roles().create(role);
+        realm.users().get(userId).roles().realmLevel().add(List.of(realm.roles().get(roleName).toRepresentation()));
+    }
+
+    final void addToGroup(String userId, String groupName) {
+        GroupRepresentation group = new GroupRepresentation();
+        group.setName(groupName);
+        try (Response response = realm.groups().add(group)) {
+            assertEquals(201, response.getStatus(), response.readEntity(String.class));
+            realm.users().get(userId).joinGroup(CreatedResponseUtil.getCreatedId(response));
         }
     }
 

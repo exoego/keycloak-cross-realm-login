@@ -35,6 +35,25 @@ The client cannot yet go on to the home realm.
 
 The [open issues](https://github.com/exoego/keycloak-cross-realm-login/issues) show what is planned.
 
+## Home realm in the token
+
+The proxy user has two read-only attributes.
+
+| Attribute | Value | Suggested claim |
+|---|---|---|
+| `home_realm` | The name of the home realm. | `home_realm` |
+| `home_realm_display_name` | The display name of the home realm. The attribute is missing when the home realm has no display name. | `home_realm_display_name` |
+
+Add a standard "User Attribute" mapper to the client of the entry realm for each attribute.
+Set "User Attribute" to the attribute name, "Token Claim Name" to the claim name, and "Claim JSON Type" to `String`.
+Turn on "Add to ID token".
+
+The entry realm needs no user profile setting.
+The mapper reads the attributes even when the user profile does not declare them.
+
+The token of the entry realm carries no roles and no groups of the home realm.
+It only proves who logged in and names the home realm.
+
 ## Passkeys
 
 The entry realm and the home realms must share the relying party ID.
