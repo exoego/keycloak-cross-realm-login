@@ -16,6 +16,8 @@ final class OsKeys {
     static void waitForChooser() {
         pause(CHOOSER_WAIT_MILLIS);
         if (isLinux()) {
+            run(List.of("xdotool", "mousemove", "0", "0"));
+            pause(KEY_GAP_MILLIS);
             debug("after-wait");
         }
         if (isMac()) {
