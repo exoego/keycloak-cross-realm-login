@@ -9,56 +9,61 @@ final class OsKeys {
 
     private static final long CHOOSER_WAIT_MILLIS = 3000;
     private static final long KEY_GAP_MILLIS = 500;
+    private static final String FIRST_ROW_X = "650";
+    private static final String FIRST_ROW_Y = "345";
+    private static final String SECOND_ROW_Y = "410";
 
     private OsKeys() {
     }
 
     static void waitForChooser() {
         pause(CHOOSER_WAIT_MILLIS);
-        if (System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("linux")) {
-            run(List.of("xdotool", "mousemove", "200", "500"));
-            run(List.of("bash", "-c", "xdotool search --onlyvisible --name 'Google Chrome for Testing' windowfocus; true"));
-            pause(KEY_GAP_MILLIS);
-            run(List.of("xdotool", "key", "Tab"));
-            pause(KEY_GAP_MILLIS);
-            debug("after-tab");
-        }
-        debug("after-wait");
-        if (System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("mac")) {
+        if (isLinux()) {
+            pointAt(FIRST_ROW_Y);
+        } else if (isMac()) {
             run(List.of("osascript", "-e", "tell application \"System Events\" to set frontmost of "
                     + "(first process whose name is \"Google Chrome for Testing\") to true"));
             pause(KEY_GAP_MILLIS);
         }
     }
 
-    static void debug(String tag) {
-        if (System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("linux")) {
-            run(List.of("bash", "-c", "mkdir -p /tmp/dbg; (echo active:; xdotool getactivewindow getwindowname;"
-                    + " echo visible:; for w in $(xdotool search --onlyvisible --name .); do echo $w $(xdotool getwindowname $w); done;"
-                    + " xwd -root -silent | convert xwd:- /tmp/dbg/" + tag + "-$(date +%s).png) > /tmp/dbg/" + tag + ".txt 2>&1; true"));
-        }
-    }
-
     static void next() {
-        press("Tab", 48);
-        pause(KEY_GAP_MILLIS);
+        if (isLinux()) {
+            pointAt(SECOND_ROW_Y);
+        } else if (isMac()) {
+            run(List.of("osascript", "-e", "tell application \"System Events\" to key code 48"));
+            pause(KEY_GAP_MILLIS);
+        } else {
+            throw unsupported();
+        }
     }
 
     static void enter() {
-        press("Return", 36);
-        pause(1000);
-        debug("after-enter");
+        if (isLinux()) {
+            run(List.of("xdotool", "key", "Return"));
+        } else if (isMac()) {
+            run(List.of("osascript", "-e", "tell application \"System Events\" to key code 36"));
+        } else {
+            throw unsupported();
+        }
     }
 
-    private static void press(String xdotoolName, int macKeyCode) {
-        String os = System.getProperty("os.name").toLowerCase(Locale.ROOT);
-        if (os.contains("mac")) {
-            run(List.of("osascript", "-e", "tell application \"System Events\" to key code " + macKeyCode));
-        } else if (os.contains("linux")) {
-            run(List.of("xdotool", "key", xdotoolName));
-        } else {
-            throw new IllegalStateException("OS key presses are supported on macOS and Linux only, not on " + os);
-        }
+    private static void pointAt(String y) {
+        run(List.of("xdotool", "mousemove", FIRST_ROW_X, y));
+        pause(KEY_GAP_MILLIS);
+    }
+
+    private static boolean isLinux() {
+        return System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("linux");
+    }
+
+    private static boolean isMac() {
+        return System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("mac");
+    }
+
+    private static IllegalStateException unsupported() {
+        return new IllegalStateException("OS key presses are supported on macOS and Linux only, not on "
+                + System.getProperty("os.name"));
     }
 
     private static void run(List<String> command) {

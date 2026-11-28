@@ -50,7 +50,7 @@ jobs:
 
       - name: Install the display tools
         if: matrix.chooser
-        run: sudo apt-get install -y xvfb xdotool imagemagick x11-apps
+        run: sudo apt-get install -y xvfb xdotool
 
       - name: Install the browser
         run: ./gradlew installBrowser -PplaywrightDeps ${{ matrix.chooser && '-Pchooser' || '' }}
@@ -66,13 +66,6 @@ jobs:
         env:
           KEYCLOAK_VERSION: ${{ matrix.keycloak }}
         run: ${{ matrix.chooser && 'xvfb-run -a ' || '' }}./gradlew check -PtestJavaVersion=${{ matrix.java }} -PtestKeycloakVersion="$KEYCLOAK_VERSION" ${{ matrix.chooser && '-Pchooser' || '' }}
-
-      - name: Upload debug
-        if: always() && matrix.chooser
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: dbg
-          path: /tmp/dbg
 
       - name: Upload coverage to Codecov
         if: matrix.java == 21 && matrix.keycloak == ''
