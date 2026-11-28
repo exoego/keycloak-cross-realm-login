@@ -9,15 +9,16 @@ import jakarta.ws.rs.core.UriInfo;
 
 import org.keycloak.authentication.authenticators.util.AuthenticatorUtils;
 import org.keycloak.common.ClientConnection;
+import org.keycloak.credential.hash.PasswordHashProvider;
 import org.keycloak.events.Details;
 import org.keycloak.events.Errors;
 import org.keycloak.events.EventBuilder;
 import org.keycloak.events.EventType;
 import org.keycloak.models.KeycloakSession;
+import org.keycloak.models.PasswordPolicy;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserCredentialModel;
 import org.keycloak.models.UserModel;
-import org.keycloak.models.credential.PasswordCredentialModel;
 import org.keycloak.services.managers.AuthenticationManager;
 import org.keycloak.services.managers.BruteForceProtector;
 
@@ -40,9 +41,14 @@ final class HomeRealmLogins {
     HomeAttempt check(Candidate candidate, String password) {
         return HomeRealmContext.call(session, candidate.realm(), () -> {
             UserModel user = candidate.user();
-            // Every check runs, so a disabled or locked-out user costs the same time.
-            boolean valid = user.credentialManager().isValid(UserCredentialModel.password(password));
             String lockout = lockoutError(candidate);
+            // A locked-out user gets a dummy hash, so it costs about the same time and no user federation sees the password.
+            boolean valid = false;
+            if (lockout == null) {
+                valid = user.credentialManager().isValid(UserCredentialModel.password(password));
+            } else {
+                dummyHash(candidate.realm());
+            }
             return new HomeAttempt(candidate, valid, user.isEnabled(), lockout);
         });
     }
@@ -69,12 +75,12 @@ final class HomeRealmLogins {
         }
     }
 
-    void recordSuccess(Candidate candidate) {
-        RealmModel home = candidate.realm();
-        if (home.isBruteForceProtected()) {
-            HomeRealmContext.run(session, home, () -> protector.successfulLogin(home, candidate.user(), connection,
-                    uri(), Set.of(PasswordCredentialModel.TYPE)));
-        }
+    private void dummyHash(RealmModel home) {
+        PasswordPolicy policy = home.getPasswordPolicy();
+        PasswordHashProvider provider = policy != null && policy.getHashAlgorithm() != null
+                ? session.getProvider(PasswordHashProvider.class, policy.getHashAlgorithm())
+                : session.getProvider(PasswordHashProvider.class);
+        provider.encodedCredential("SlightlyLongerDummyPassword", policy != null ? policy.getHashIterations() : -1);
     }
 
     private String lockoutError(Candidate candidate) {

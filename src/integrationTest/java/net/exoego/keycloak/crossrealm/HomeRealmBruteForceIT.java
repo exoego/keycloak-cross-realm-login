@@ -94,7 +94,7 @@ class HomeRealmBruteForceIT {
     }
 
     @Test
-    void aSuccessResetsTheFailureCountOfTheOnlyMatch() throws Exception {
+    void aRightPasswordAtTheEntryRealmKeepsTheFailureCountOfTheOnlyMatch() throws Exception {
         try (TempRealm home = protectedHome(5); Browser browser = new Browser()) {
             String userId = home.addUser(username, PASSWORD, true);
             assertRejected(browser.login(ENTRY, CLIENT, username, WRONG));
@@ -104,13 +104,13 @@ class HomeRealmBruteForceIT {
             IdToken token = browser.exchange(ENTRY, CLIENT, browser.login(ENTRY, CLIENT, username, PASSWORD).code());
 
             assertEquals(proxyId(ENTRY, home.id(), userId), token.subject());
-            Await.until("no failure", () -> home.numFailures(userId) == 0);
+            Await.staysTrue("two failures", () -> home.numFailures(userId) == 2);
             assertEquals(List.of("invalid_user_credentials", "invalid_user_credentials"), errors(home, userId));
         }
     }
 
     @Test
-    void aSuccessResetsTheFailureCountOfTheChosenUserOnly() throws Exception {
+    void aChoiceAtTheEntryRealmKeepsTheFailureCountOfEveryCandidate() throws Exception {
         try (TempRealm alpha = protectedHome(5); TempRealm bravo = protectedHome(5); Browser browser = new Browser()) {
             alpha.setDisplayName("alpha");
             bravo.setDisplayName("bravo");
@@ -124,8 +124,8 @@ class HomeRealmBruteForceIT {
             IdToken token = browser.exchange(ENTRY, CLIENT, browser.choose(1).code());
 
             assertEquals(proxyId(ENTRY, bravo.id(), bravoId), token.subject());
-            Await.until("no failure in the chosen realm", () -> bravo.numFailures(bravoId) == 0);
-            Await.staysTrue("the failure of the other realm stays", () -> alpha.numFailures(alphaId) == 1);
+            Await.staysTrue("the failures stay",
+                    () -> alpha.numFailures(alphaId) == 1 && bravo.numFailures(bravoId) == 1);
         }
     }
 
@@ -181,7 +181,7 @@ class HomeRealmBruteForceIT {
     }
 
     @Test
-    void aRightLoginOfOneRealmCountsNoFailureAndWritesNoEventForTheOther() throws Exception {
+    void aRightLoginOfOneRealmChangesNoFailureCountAndWritesNoEventForTheOther() throws Exception {
         try (TempRealm one = protectedHome(5); TempRealm other = protectedHome(5); Browser browser = new Browser()) {
             String oneId = one.addUser(username, "password-of-one", true);
             String otherId = other.addUser(username, "password-of-other", true);
@@ -192,9 +192,8 @@ class HomeRealmBruteForceIT {
                     browser.login(ENTRY, CLIENT, username, "password-of-one").code());
 
             assertEquals(proxyId(ENTRY, one.id(), oneId), token.subject());
-            Await.until("a reset in the realm of the login", () -> one.numFailures(oneId) == 0);
             assertEquals(1, other.loginErrors(otherId).size());
-            Await.staysTrue("the failure of the other realm stays", () -> other.numFailures(otherId) == 1);
+            Await.staysTrue("the failures stay", () -> one.numFailures(oneId) == 1 && other.numFailures(otherId) == 1);
         }
     }
 

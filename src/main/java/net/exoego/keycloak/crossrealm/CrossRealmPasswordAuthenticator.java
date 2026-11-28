@@ -58,7 +58,6 @@ final class CrossRealmPasswordAuthenticator implements Authenticator {
             logins.recordFailures(attempts, identifier);
             invalidCredentials(context);
         } else if (matches.size() == 1) {
-            logins.recordSuccess(matches.get(0));
             context.setUser(proxyUser(context, matches.get(0)));
             context.success(PasswordCredentialModel.TYPE);
         } else {
@@ -125,7 +124,6 @@ final class CrossRealmPasswordAuthenticator implements Authenticator {
             invalidCredentials(context);
             return;
         }
-        logins.recordSuccess(candidate.get());
         context.setUser(proxy);
         context.success(PasswordCredentialModel.TYPE);
     }
