@@ -55,6 +55,9 @@ The browser runs on your machine, not in a container.
 The first run downloads Chromium, about 100 MB.
 The Gradle task `installBrowser` does it, and it is quick when the browser is already there.
 
+The integration tests run in parallel and share one Keycloak.
+A test that changes a realm or a user must make its own, as `TempRealm` does, and must not touch the realms of the JSON files.
+
 To see the browser while you debug, add `-Pheaded`.
 
 ```sh

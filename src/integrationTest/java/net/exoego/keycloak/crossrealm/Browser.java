@@ -13,6 +13,7 @@ import java.time.Duration;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -26,7 +27,7 @@ import com.sun.net.httpserver.HttpServer;
 
 /**
  * Stands for the browser of one person. Each instance has its own cookies, so it has its own sessions.
- * All instances share one headless Chromium.
+ * The instances of one thread share one headless Chromium.
  */
 final class Browser implements AutoCloseable {
 
@@ -49,12 +50,12 @@ final class Browser implements AutoCloseable {
     private final Page page;
 
     Browser() {
-        this(Chromium.INSTANCE.newContext());
+        this(Chromium.get().newContext());
     }
 
     /** A browser that asks for pages in a language. */
     Browser(String locale) {
-        this(Chromium.INSTANCE.newContext(new com.microsoft.playwright.Browser.NewContextOptions().setLocale(locale)));
+        this(Chromium.get().newContext(new com.microsoft.playwright.Browser.NewContextOptions().setLocale(locale)));
     }
 
     private Browser(BrowserContext context) {
@@ -330,18 +331,28 @@ final class Browser implements AutoCloseable {
         }
     }
 
-    /** One Playwright and one Chromium for the JVM. They start with the first browser. */
+    /**
+     * One Playwright and one Chromium for each thread, because Playwright must stay on the thread that made it.
+     * They start with the first browser of a thread and close when the JVM ends.
+     */
     private static final class Chromium {
 
-        static final com.microsoft.playwright.Browser INSTANCE;
+        private static final List<Playwright> ALL = new CopyOnWriteArrayList<>();
+        private static final ThreadLocal<com.microsoft.playwright.Browser> LOCAL = ThreadLocal.withInitial(() -> {
+            Playwright playwright = Playwright.create();
+            ALL.add(playwright);
+            return playwright.chromium().launch(new BrowserType.LaunchOptions().setHeadless(!HEADED));
+        });
 
         static {
-            Playwright playwright = Playwright.create();
-            Runtime.getRuntime().addShutdownHook(new Thread(playwright::close));
-            INSTANCE = playwright.chromium().launch(new BrowserType.LaunchOptions().setHeadless(!HEADED));
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> ALL.forEach(Playwright::close)));
         }
 
         private Chromium() {
+        }
+
+        static com.microsoft.playwright.Browser get() {
+            return LOCAL.get();
         }
     }
 }

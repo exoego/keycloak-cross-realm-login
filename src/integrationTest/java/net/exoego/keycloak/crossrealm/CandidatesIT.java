@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.keycloak.admin.client.resource.RealmResource;
 import org.keycloak.representations.idm.UserRepresentation;
 
+import static net.exoego.keycloak.crossrealm.KeycloakEnvironment.ADMIN;
 import static net.exoego.keycloak.crossrealm.KeycloakEnvironment.EXCLUDED_REALM_ID;
 import static net.exoego.keycloak.crossrealm.KeycloakEnvironment.KEYCLOAK;
 import static net.exoego.keycloak.crossrealm.Logins.CLIENT;
@@ -197,7 +198,7 @@ class CandidatesIT {
     @Test
     void doesNotShowAUserOfTheEntryRealm() {
         try (TempEntryRealm entry = TempEntryRealm.withUserStorage()) {
-            String id = entry.addUser("local", "the-password", true);
+            String id = entry.addUser("local-" + UUID.randomUUID(), "the-password", true);
 
             assertNotFound(entry.name(), proxyId(entry.name(), entry.id(), id));
             assertEquals("bob", show(entry.name(), proxyId(entry.name(), realmId("home-a"), userId("home-a", "bob")))
@@ -240,6 +241,6 @@ class CandidatesIT {
     }
 
     private static RealmResource realm(String name) {
-        return KEYCLOAK.getKeycloakAdminClient().realm(name);
+        return ADMIN.realm(name);
     }
 }

@@ -2,7 +2,7 @@ package net.exoego.keycloak.crossrealm;
 
 import org.junit.jupiter.api.Test;
 
-import static net.exoego.keycloak.crossrealm.KeycloakEnvironment.KEYCLOAK;
+import static net.exoego.keycloak.crossrealm.KeycloakEnvironment.ADMIN;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class RealmsIT {
@@ -15,6 +15,6 @@ class RealmsIT {
     }
 
     private static String displayName(String realm) {
-        return KEYCLOAK.getKeycloakAdminClient().realm(realm).toRepresentation().getDisplayName();
+        return ADMIN.realm(realm).toRepresentation().getDisplayName();
     }
 }

@@ -14,7 +14,7 @@ import org.keycloak.representations.idm.OrganizationRepresentation;
 import org.keycloak.representations.idm.RealmRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
 
-import static net.exoego.keycloak.crossrealm.KeycloakEnvironment.KEYCLOAK;
+import static net.exoego.keycloak.crossrealm.KeycloakEnvironment.ADMIN;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -27,8 +27,8 @@ abstract class TempRealmBase implements AutoCloseable {
     TempRealmBase(String prefix, RealmRepresentation rep) {
         name = prefix + UUID.randomUUID();
         rep.setRealm(name);
-        KEYCLOAK.getKeycloakAdminClient().realms().create(rep);
-        realm = KEYCLOAK.getKeycloakAdminClient().realm(name);
+        ADMIN.realms().create(rep);
+        realm = ADMIN.realm(name);
     }
 
     final String name() {
