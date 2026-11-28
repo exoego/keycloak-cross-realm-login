@@ -55,6 +55,16 @@ jobs:
       - name: Install the browser
         run: ./gradlew installBrowser -PplaywrightDeps
 
+      # The tests pull the images after the compile. Pulling now overlaps with the compile.
+      # It comes after the browser install, so the two downloads do not share the network.
+      # The tests pull again by themselves, so a failed pull here must not fail the job.
+      - name: Pull the images in the background
+        env:
+          KEYCLOAK_VERSION: ${{ matrix.keycloak }}
+        run: |
+          ./gradlew -q printTestImages -PtestKeycloakVersion="$KEYCLOAK_VERSION" > "$RUNNER_TEMP/images"
+          xargs -P 2 -n 1 docker pull < "$RUNNER_TEMP/images" > /dev/null 2>&1 &
+
       # The integration tests start Keycloak and PostgreSQL with Testcontainers, using the Docker of the runner.
       - name: Run Tests
         env:

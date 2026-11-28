@@ -24,14 +24,14 @@ final class KeycloakEnvironment {
 
     private static final Network NETWORK = Network.newNetwork();
 
-    static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:" + System.getProperty("postgres.version"))
+    static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer(System.getProperty("postgres.image"))
             .withNetwork(NETWORK)
             .withNetworkAliases("postgres")
             .withDatabaseName("keycloak")
             .withUsername("keycloak")
             .withPassword("keycloak");
 
-    static final KeycloakContainer KEYCLOAK = Coverage.measure(Coverage.keycloak("quay.io/keycloak/keycloak:" + KEYCLOAK_VERSION))
+    static final KeycloakContainer KEYCLOAK = Coverage.measure(Coverage.keycloak(System.getProperty("keycloak.image")))
             .withNetwork(NETWORK)
             .withProviderLibsFrom(List.of(PROVIDER_JAR))
             .withRealmImportFiles("/entry-realm.json", "/home-a-realm.json", "/home-b-realm.json",
