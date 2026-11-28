@@ -11,7 +11,9 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
@@ -47,6 +49,7 @@ final class Browser implements AutoCloseable {
             .build();
     private final BrowserContext context;
     private final Page page;
+    private final AutoCloseable owner;
 
     Browser() {
         this(Chromium.get().newContext());
@@ -57,8 +60,30 @@ final class Browser implements AutoCloseable {
     }
 
     private Browser(BrowserContext context) {
+        this(context, () -> { });
+    }
+
+    private Browser(BrowserContext context, AutoCloseable owner) {
         this.context = context;
         this.page = context.newPage();
+        this.owner = owner;
+    }
+
+    static Browser withChooser() {
+        Playwright playwright = Playwright.create();
+        try {
+            BrowserType.LaunchOptions options = new BrowserType.LaunchOptions().setHeadless(false);
+            if (System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("linux")) {
+                Map<String, String> env = new HashMap<>(System.getenv());
+                env.put("ACCESSIBILITY_ENABLED", "1");
+                options.setEnv(env).setArgs(List.of("--force-renderer-accessibility"));
+            }
+            com.microsoft.playwright.Browser chromium = playwright.chromium().launch(options);
+            return new Browser(chromium.newContext(), playwright);
+        } catch (RuntimeException e) {
+            playwright.close();
+            throw e;
+        }
     }
 
     void open(String realm, String clientId) {
@@ -113,13 +138,30 @@ final class Browser implements AutoCloseable {
         return result();
     }
 
+    LoginResult loginWithPasskeyChooser(String realm, String clientId, String username, int index) {
+        open(realm, clientId);
+        waitForEnd(LOGIN_FORM + ", " + STEP_END_SELECTOR);
+        page.waitForLoadState(LoadState.DOMCONTENTLOADED);
+        markPage();
+        page.locator(PASSKEY_BUTTON).click();
+        PasskeyChooser.pick(username, index);
+        waitForEnd(STEP_END_SELECTOR);
+        return result();
+    }
+
     void clearCookies() {
         context.clearCookies();
     }
 
-    void addVirtualAuthenticator() {
+    VirtualAuthenticator addVirtualAuthenticator() {
+        return addVirtualAuthenticator(false);
+    }
+
+    VirtualAuthenticator addVirtualAuthenticator(boolean enableUi) {
         CDPSession session = context.newCDPSession(page);
-        session.send("WebAuthn.enable");
+        JsonObject enable = new JsonObject();
+        enable.addProperty("enableUI", enableUi);
+        session.send("WebAuthn.enable", enable);
         JsonObject options = new JsonObject();
         options.addProperty("protocol", "ctap2");
         options.addProperty("transport", "internal");
@@ -129,7 +171,8 @@ final class Browser implements AutoCloseable {
         options.addProperty("automaticPresenceSimulation", true);
         JsonObject params = new JsonObject();
         params.add("options", options);
-        session.send("WebAuthn.addVirtualAuthenticator", params);
+        String id = session.send("WebAuthn.addVirtualAuthenticator", params).get("authenticatorId").getAsString();
+        return new VirtualAuthenticator(session, id);
     }
 
     LoginResult loginWithoutUsername(String realm, String clientId, String password) {
@@ -307,6 +350,11 @@ final class Browser implements AutoCloseable {
     @Override
     public void close() {
         context.close();
+        try {
+            owner.close();
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     private void open(String realm, String clientId, String extraQuery) {

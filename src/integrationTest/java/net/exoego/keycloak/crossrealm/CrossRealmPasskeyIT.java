@@ -22,7 +22,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CrossRealmPasskeyIT {
 
-    private static final String HOME_CLIENT = "home-client";
     private static final String PASSWORD = "the-password";
     private static final String WRONG = "not-the-password";
     private static final String PASSKEY_ERROR = "Passkey authentication result is invalid.";
@@ -198,15 +197,8 @@ class CrossRealmPasskeyIT {
     }
 
     private String registerPasskey(TempRealm home, Browser browser) {
-        home.addPublicClient(HOME_CLIENT);
-        home.allowPasskeys();
-        String userId = home.addUser(username, PASSWORD, true);
-        home.setName(userId, "Pass", "Key");
-        home.requireAction(userId, "webauthn-register-passwordless");
         browser.addVirtualAuthenticator();
-        browser.loginAndRegisterPasskey(home.name(), HOME_CLIENT, username, PASSWORD).code();
-        browser.clearCookies();
-        return userId;
+        return Logins.registerPasskey(home, browser, username, PASSWORD);
     }
 
     private static long counter(TempRealm home, String userId) {

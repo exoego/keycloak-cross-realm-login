@@ -48,6 +48,10 @@ It checks user verification when its own policy or the policy of the entry realm
 A failed passkey does not count as a failed login for the brute force protection.
 It writes an event in the home realm.
 
+Keycloak names a passkey by the username.
+A person with the same username in two home realms sees two entries that look the same in the browser.
+A home realm can change that name with its own login theme, in the template `webauthn-register.ftl`.
+
 ## Configuration
 
 The extension has its own SPI, `cross-realm-login`, with one provider, `default`.
@@ -80,6 +84,10 @@ The lookup reads the Keycloak database. A user of a user federation is found onl
 The extension uses internal APIs of Keycloak. A new minor version of Keycloak can break it.
 
 The tests run only with PostgreSQL. The other databases of Keycloak may work, and nothing tests them.
+
+## Testing
+
+The test of the passkey chooser of Chrome is off by default. Run it with `./gradlew integrationTest -Pchooser`. On macOS the terminal app needs the accessibility permission to control Chrome through System Events, and on Linux it needs a display, a D-Bus session, and AT-SPI with its Python bindings (`xvfb dbus-x11 at-spi2-core python3-gi gir1.2-atspi-2.0`). Run Gradle under `xvfb-run dbus-run-session --`.
 
 ## Contributing
 
