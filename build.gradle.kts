@@ -54,6 +54,17 @@ val testKeycloakVersion = providers.gradleProperty("testKeycloakVersion")
     .filter { it.isNotBlank() }
     .orElse(libs.versions.keycloak)
 
+val keycloakImage = testKeycloakVersion.map { "quay.io/keycloak/keycloak:$it" }
+val postgresImage = libs.versions.postgres.image.map { "postgres:$it" }
+
+// CI pulls these images in the background while it compiles.
+tasks.register("printTestImages") {
+    val images = keycloakImage.zip(postgresImage) { keycloak, postgres -> listOf(keycloak, postgres) }
+    doLast {
+        images.get().forEach { println(it) }
+    }
+}
+
 // The CLI of Playwright is in the same jar as its API.
 val playwrightCli = configurations.create("playwrightCli")
 dependencies {
@@ -93,7 +104,8 @@ testing {
                     // The tests run the jar, so a new jar must run them again.
                     inputs.files(tasks.jar)
                     systemProperty("keycloak.version", testKeycloakVersion.get())
-                    systemProperty("postgres.version", libs.versions.postgres.image.get())
+                    systemProperty("keycloak.image", keycloakImage.get())
+                    systemProperty("postgres.image", postgresImage.get())
                     // The installBrowser task is the one place that downloads the browser.
                     environment("PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD", "1")
                     dependsOn(installBrowser)
