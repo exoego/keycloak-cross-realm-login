@@ -17,7 +17,11 @@ final class OsKeys {
         pause(CHOOSER_WAIT_MILLIS);
         if (System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("linux")) {
             run(List.of("xdotool", "mousemove", "200", "500"));
+            run(List.of("bash", "-c", "xdotool search --onlyvisible --name 'Google Chrome for Testing' windowfocus; true"));
             pause(KEY_GAP_MILLIS);
+            run(List.of("xdotool", "key", "Tab"));
+            pause(KEY_GAP_MILLIS);
+            debug("after-tab");
         }
         debug("after-wait");
         if (System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("mac")) {
