@@ -98,19 +98,30 @@ final class CrossRealmPasswordAuthenticator implements Authenticator {
     }
 
     private static void choose(AuthenticationFlowContext context, String choice) {
-        List<HomeUserId> matches = PendingMatches
-                .decode(context.getAuthenticationSession().getAuthNote(PendingMatches.NOTE)).matches();
+        AuthenticationSessionModel session = context.getAuthenticationSession();
+        List<HomeUserId> matches = PendingMatches.decode(session.getAuthNote(PendingMatches.NOTE)).matches();
+        String identifier = session.getAuthNote(AbstractUsernameFormAuthenticator.ATTEMPTED_USERNAME);
         forgetMatches(context);
         int index = parseIndex(choice);
         if (index < 0 || index >= matches.size()) {
             invalidCredentials(context);
             return;
         }
-        UserModel proxy = findProxy(context, matches.get(index));
         Optional<Candidate> candidate = context.getSession().getProvider(CandidateLookup.class)
                 .find(context.getRealm(), matches.get(index).realmId(), matches.get(index).userId());
+        if (candidate.isEmpty()) {
+            invalidCredentials(context);
+            return;
+        }
         HomeRealmLogins logins = logins(context);
-        if (proxy == null || !proxy.isEnabled() || candidate.isEmpty() || logins.isLockedOut(candidate.get())) {
+        HomeAttempt attempt = logins.recheck(candidate.get());
+        if (!attempt.matches()) {
+            logins.recordFailures(List.of(attempt), identifier);
+            invalidCredentials(context);
+            return;
+        }
+        UserModel proxy = findProxy(context, matches.get(index));
+        if (proxy == null || !proxy.isEnabled()) {
             invalidCredentials(context);
             return;
         }
@@ -155,7 +166,11 @@ final class CrossRealmPasswordAuthenticator implements Authenticator {
             // The answer must not come sooner when nobody has the identifier.
             AuthenticatorUtils.dummyHash(context);
         }
-        return candidates.stream().map(candidate -> logins.check(candidate, password)).toList();
+        // Keycloak locks each checked user until the request ends. Checking in one order avoids a deadlock.
+        return candidates.stream()
+                .sorted(Comparator.comparing((Candidate candidate) -> candidate.user().getId()))
+                .map(candidate -> logins.check(candidate, password))
+                .toList();
     }
 
     private static UserModel proxyUser(AuthenticationFlowContext context, Candidate candidate) {

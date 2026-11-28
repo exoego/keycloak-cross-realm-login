@@ -47,23 +47,24 @@ final class HomeRealmLogins {
         });
     }
 
-    boolean isLockedOut(Candidate candidate) {
-        return HomeRealmContext.call(session, candidate.realm(), () -> lockoutError(candidate) != null);
+    HomeAttempt recheck(Candidate candidate) {
+        return HomeRealmContext.call(session, candidate.realm(),
+                () -> new HomeAttempt(candidate, true, candidate.user().isEnabled(), lockoutError(candidate)));
     }
 
     void recordFailures(List<HomeAttempt> attempts, String identifier) {
         for (HomeAttempt attempt : attempts) {
             RealmModel home = attempt.candidate().realm();
             HomeRealmContext.run(session, home, () -> {
-                if (attempt.countsAsFailure() && home.isBruteForceProtected()) {
-                    protector.failedLogin(home, attempt.candidate().user(), connection, uri(), failureCategories());
-                }
                 new EventBuilder(home, session, connection)
                         .event(EventType.LOGIN)
                         .user(attempt.candidate().user())
-                        .detail(Details.USERNAME, identifier.trim())
+                        .detail(Details.USERNAME, identifier == null ? null : identifier.trim())
                         .detail(ENTRY_REALM, entryRealm.getName())
                         .error(errorOf(attempt));
+                if (attempt.countsAsFailure() && home.isBruteForceProtected()) {
+                    protector.failedLogin(home, attempt.candidate().user(), connection, uri(), failureCategories());
+                }
             });
         }
     }

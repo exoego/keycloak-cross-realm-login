@@ -71,12 +71,6 @@ abstract class TempRealmBase implements AutoCloseable {
         realm.update(rep);
     }
 
-    final void setBruteForceProtected(boolean protectedFromBruteForce) {
-        RealmRepresentation rep = realm.toRepresentation();
-        rep.setBruteForceProtected(protectedFromBruteForce);
-        realm.update(rep);
-    }
-
     final void enableEvents() {
         RealmRepresentation rep = realm.toRepresentation();
         rep.setEventsEnabled(true);

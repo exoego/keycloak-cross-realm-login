@@ -42,10 +42,11 @@ class HomeRealmBruteForceIT {
     void aLockedOutUserWithTheRightPasswordGetsTheSamePageAsAWrongPassword() {
         try (TempRealm home = protectedHome(2); Browser browser = new Browser()) {
             String userId = home.addUser(username, PASSWORD, true);
-            lockOut(home, userId, browser);
-
             assertRejected(browser.login(ENTRY, CLIENT, username, WRONG));
             String wrongShape = browser.loginFormShape();
+            assertRejected(browser.login(ENTRY, CLIENT, username, WRONG));
+            Await.until("a lockout", () -> home.isLockedOut(userId));
+
             assertRejected(browser.login(ENTRY, CLIENT, username, PASSWORD));
             String lockedShape = browser.loginFormShape();
 
@@ -70,7 +71,7 @@ class HomeRealmBruteForceIT {
             String userId = home.addUser(username, PASSWORD, true);
             lockOut(home, userId, browser);
 
-            assertRejected(browser.login(ENTRY, CLIENT, username, PASSWORD));
+            assertRejected(browser.login(ENTRY, CLIENT, username, WRONG));
 
             assertEquals(List.of("invalid_user_credentials", "invalid_user_credentials", "user_temporarily_disabled"),
                     errors(home, userId));
@@ -142,6 +143,25 @@ class HomeRealmBruteForceIT {
 
             assertRejected(browser.choose(0));
             assertEquals(2, alpha.numFailures(alphaId));
+            assertEquals(List.of("invalid_user_credentials", "invalid_user_credentials", "user_temporarily_disabled"),
+                    errors(alpha, alphaId));
+        }
+    }
+
+    @Test
+    void aChoiceThatGotDisabledMeanwhileWritesTheDisabledError() {
+        try (TempRealm alpha = protectedHome(5); TempRealm bravo = protectedHome(5); Browser browser = new Browser()) {
+            alpha.setDisplayName("alpha");
+            bravo.setDisplayName("bravo");
+            String alphaId = alpha.addUser(username, PASSWORD, true);
+            bravo.addUser(username, PASSWORD, true);
+            assertTrue(browser.login(ENTRY, CLIENT, username, PASSWORD).isChooser());
+
+            alpha.disableUser(alphaId);
+
+            assertRejected(browser.choose(0));
+            assertEquals(List.of("user_disabled"), errors(alpha, alphaId));
+            Await.staysTrue("no failure", () -> alpha.numFailures(alphaId) == 0);
         }
     }
 
