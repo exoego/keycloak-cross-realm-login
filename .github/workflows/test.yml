@@ -50,7 +50,7 @@ jobs:
 
       - name: Install the display tools
         if: matrix.chooser
-        run: sudo apt-get install -y xvfb xdotool openbox
+        run: sudo apt-get install -y xvfb xdotool openbox imagemagick x11-apps x11-utils
 
       - name: Install the browser
         run: ./gradlew installBrowser -PplaywrightDeps ${{ matrix.chooser && '-Pchooser' || '' }}
@@ -71,6 +71,13 @@ jobs:
       - name: Run Tests with the passkey chooser
         if: matrix.chooser
         run: xvfb-run -a -s "-screen 0 1280x1024x24" sh -c 'openbox & exec ./gradlew check -PtestJavaVersion=${{ matrix.java }} -Pchooser'
+
+      - name: Upload debug
+        if: always() && matrix.chooser
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dbg
+          path: /tmp/dbg
 
       - name: Upload coverage to Codecov
         if: matrix.java == 21 && matrix.keycloak == ''

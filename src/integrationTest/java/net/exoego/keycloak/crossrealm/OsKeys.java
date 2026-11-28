@@ -15,11 +15,19 @@ final class OsKeys {
 
     static void waitForChooser() {
         pause(CHOOSER_WAIT_MILLIS);
+        if (isLinux()) {
+            debug("after-wait");
+        }
         if (isMac()) {
             run(List.of("osascript", "-e", "tell application \"System Events\" to set frontmost of "
                     + "(first process whose name is \"Google Chrome for Testing\") to true"));
             pause(KEY_GAP_MILLIS);
         }
+    }
+
+    static void debug(String tag) {
+        run(List.of("bash", "-c", "mkdir -p /tmp/dbg; (xprop -root _NET_SUPPORTING_WM_CHECK; xdotool getwindowfocus getwindowname;"
+                + " pgrep -a openbox; xwd -root -silent | convert xwd:- /tmp/dbg/" + tag + ".png) > /tmp/dbg/" + tag + ".txt 2>&1; true"));
     }
 
     static void next() {
@@ -29,6 +37,10 @@ final class OsKeys {
 
     static void enter() {
         press("Return", 36);
+        pause(1000);
+        if (isLinux()) {
+            debug("after-enter");
+        }
     }
 
     private static void press(String xdotoolName, int macKeyCode) {
