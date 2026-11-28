@@ -78,14 +78,8 @@ final class CrossRealmPasswordAuthenticator implements Authenticator {
             MultivaluedMap<String, String> form) {
         HomeRealmPasskeys.Outcome outcome = new HomeRealmPasskeys(context.getSession(), logins).verify(context, form);
         if (outcome.candidate() != null) {
-            UserModel proxy = findProxy(context, new HomeUserId(outcome.candidate().realm().getId(),
-                    outcome.candidate().user().getId()));
-            if (proxy != null) {
-                context.setUser(proxy);
-                context.success(WebAuthnCredentialModel.TYPE_PASSWORDLESS);
-                return;
-            }
-            passkeyError(context, HomeRealmPasskeys.FAILED);
+            context.setUser(proxyUser(context, outcome.candidate()));
+            context.success(WebAuthnCredentialModel.TYPE_PASSWORDLESS);
             return;
         }
         passkeyError(context, outcome.errorKey());
@@ -101,7 +95,7 @@ final class CrossRealmPasswordAuthenticator implements Authenticator {
     }
 
     private static LoginFormsProvider loginForm(AuthenticationFlowContext context) {
-        if (passkeysOn(context)) {
+        if (passkeysOn(context) && context.getUser() == null) {
             new WebAuthnConditionalUIAuthenticator(context.getSession(),
                     flow -> flow.form().createLoginUsernamePassword()).fillContextForm(context);
         }

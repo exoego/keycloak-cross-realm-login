@@ -93,6 +93,12 @@ abstract class TempRealmBase implements AutoCloseable {
         realm.update(rep);
     }
 
+    final void setPasskeyRelyingPartyId(String rpId) {
+        RealmRepresentation rep = realm.toRepresentation();
+        rep.setWebAuthnPolicyPasswordlessRpId(rpId);
+        realm.update(rep);
+    }
+
     final void setName(String userId, String firstName, String lastName) {
         UserRepresentation user = realm.users().get(userId).toRepresentation();
         user.setFirstName(firstName);

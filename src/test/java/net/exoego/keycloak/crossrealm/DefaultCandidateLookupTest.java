@@ -3,6 +3,7 @@ package net.exoego.keycloak.crossrealm;
 import java.lang.reflect.Proxy;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 import org.keycloak.models.RealmModel;
@@ -31,6 +32,16 @@ class DefaultCandidateLookupTest {
         assertEquals(List.of(), lookup.findByIdentifier(entryRealm, "   "));
         assertEquals(List.of(), lookup.findByIdentifier(entryRealm, "a".repeat(256)));
         assertThrows(AssertionError.class, () -> lookup.findByIdentifier(entryRealm, "a".repeat(255)));
+    }
+
+    @Test
+    void looksUpNoUserIdThatNoUserCanHave() {
+        RealmModel entryRealm = realmThatFailsWhenRead();
+
+        assertEquals(Optional.empty(), lookup.findByUserId(entryRealm, null));
+        assertEquals(Optional.empty(), lookup.findByUserId(entryRealm, ""));
+        assertEquals(Optional.empty(), lookup.findByUserId(entryRealm, "a\u0000b"));
+        assertThrows(NullPointerException.class, () -> lookup.findByUserId(entryRealm, "ab"));
     }
 
     @Test

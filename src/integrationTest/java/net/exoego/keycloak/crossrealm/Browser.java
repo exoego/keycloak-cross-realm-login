@@ -70,7 +70,15 @@ final class Browser implements AutoCloseable {
     }
 
     LoginResult login(String realm, String clientId, String username, String password) {
-        open(realm, clientId);
+        return login(realm, clientId, username, password, "");
+    }
+
+    LoginResult loginAgain(String realm, String clientId, String username, String password) {
+        return login(realm, clientId, username, password, "&prompt=login");
+    }
+
+    private LoginResult login(String realm, String clientId, String username, String password, String extraQuery) {
+        open(realm, clientId, extraQuery);
         waitForEnd(LOGIN_FORM + ", " + STEP_END_SELECTOR);
         if (!page.url().startsWith(REDIRECT_URI) && page.locator(LOGIN_FORM).count() > 0) {
             page.locator("#username").fill(username);
@@ -88,6 +96,7 @@ final class Browser implements AutoCloseable {
         page.locator("#password").fill(password);
         page.locator("#kc-login").click();
         waitForEnd(PASSKEY_REGISTER_BUTTON + ", " + STEP_END_SELECTOR);
+        page.waitForLoadState(LoadState.DOMCONTENTLOADED);
         markPage();
         page.locator(PASSKEY_REGISTER_BUTTON).click();
         waitForEnd(STEP_END_SELECTOR);
@@ -216,6 +225,37 @@ final class Browser implements AutoCloseable {
                 + " document.body.appendChild(copy);"
                 + " copy.submit();"
                 + " }", Map.of("username", username, "password", password));
+        waitForEnd(LOGIN_FORM + ", " + STEP_END_SELECTOR);
+        return result();
+    }
+
+    LoginResult postPasskeyForm(String realm, String clientId, Map<String, String> fields) {
+        open(realm, clientId);
+        waitForEnd(LOGIN_FORM + ", " + STEP_END_SELECTOR);
+        return postPasskeyFormOfThisPage(fields);
+    }
+
+    LoginResult postPasskeyFormOfThisPage(Map<String, String> fields) {
+        markPage();
+        page.evaluate("values => {"
+                + " let form = document.querySelector('form#webauth');"
+                + " if (form === null) {"
+                + "   form = document.createElement('form');"
+                + "   form.method = 'post';"
+                + "   form.action = document.querySelector('form#kc-form-login').action;"
+                + "   document.body.appendChild(form);"
+                + " }"
+                + " for (const name of ['clientDataJSON', 'authenticatorData', 'signature', 'credentialId',"
+                + "     'userHandle', 'error']) {"
+                + "   let input = form.querySelector('input[name=' + name + ']');"
+                + "   if (input === null) {"
+                + "     input = document.createElement('input');"
+                + "     input.type = 'hidden'; input.name = name; form.appendChild(input);"
+                + "   }"
+                + "   input.value = values[name] || '';"
+                + " }"
+                + " form.submit();"
+                + " }", fields);
         waitForEnd(LOGIN_FORM + ", " + STEP_END_SELECTOR);
         return result();
     }
