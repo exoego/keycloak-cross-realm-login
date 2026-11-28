@@ -7,7 +7,7 @@ import java.util.Set;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.keycloak.representations.idm.RealmRepresentation;
 
-/** An entry realm with a random name that exists for one test. It has the settings of entry-realm.json. */
+/** An entry realm with a random name for one test. It has the settings of entry-realm.json. */
 final class TempEntryRealm extends TempRealmBase {
 
     private TempEntryRealm(boolean withUserStorage, boolean withDefaultRequiredActions) {

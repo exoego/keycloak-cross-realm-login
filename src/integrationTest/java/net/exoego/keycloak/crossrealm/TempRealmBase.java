@@ -18,7 +18,7 @@ import static net.exoego.keycloak.crossrealm.KeycloakEnvironment.ADMIN;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** A realm with a random name that exists for one test. */
+/** A realm with a random name for one test. */
 abstract class TempRealmBase implements AutoCloseable {
 
     private final String name;
@@ -155,6 +155,6 @@ abstract class TempRealmBase implements AutoCloseable {
 
     @Override
     public void close() {
-        realm.remove();
+        disable();
     }
 }
