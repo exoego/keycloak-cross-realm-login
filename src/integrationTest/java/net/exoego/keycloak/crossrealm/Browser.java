@@ -18,11 +18,15 @@ import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import com.microsoft.playwright.BrowserContext;
+import com.microsoft.playwright.CDPSession;
 import com.microsoft.playwright.BrowserType;
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
+import com.microsoft.playwright.options.LoadState;
 import com.sun.net.httpserver.HttpServer;
 
 final class Browser implements AutoCloseable {
@@ -32,6 +36,8 @@ final class Browser implements AutoCloseable {
     static final boolean HEADED = Boolean.getBoolean("browser.headed");
 
     private static final String LOGIN_FORM = "form#kc-form-login";
+    private static final String PASSKEY_REGISTER_BUTTON = "#registerWebAuthn";
+    private static final String PASSKEY_BUTTON = "#authenticateWebAuthnButton";
     private static final String CHOOSER = "form#cross-realm-choices";
     private static final String MESSAGE_SELECTOR = "#input-error, #kc-error-message, .kc-feedback-text";
     private static final String STEP_END_SELECTOR = MESSAGE_SELECTOR + ", " + CHOOSER;
@@ -74,6 +80,73 @@ final class Browser implements AutoCloseable {
             waitForEnd(STEP_END_SELECTOR);
         }
         return result();
+    }
+
+    LoginResult loginAndRegisterPasskey(String realm, String clientId, String username, String password) {
+        open(realm, clientId);
+        waitForEnd(LOGIN_FORM + ", " + STEP_END_SELECTOR);
+        page.locator("#username").fill(username);
+        page.locator("#password").fill(password);
+        page.locator("#kc-login").click();
+        waitForEnd(PASSKEY_REGISTER_BUTTON + ", " + STEP_END_SELECTOR);
+        markPage();
+        page.locator(PASSKEY_REGISTER_BUTTON).click();
+        waitForEnd(STEP_END_SELECTOR);
+        return result();
+    }
+
+    LoginResult openLoginPage(String realm, String clientId) {
+        open(realm, clientId);
+        waitForEnd(LOGIN_FORM + ", " + STEP_END_SELECTOR);
+        return result();
+    }
+
+    LoginResult loginWithPasskey(String realm, String clientId) {
+        open(realm, clientId);
+        waitForEnd(LOGIN_FORM + ", " + STEP_END_SELECTOR);
+        page.waitForLoadState(LoadState.DOMCONTENTLOADED);
+        markPage();
+        page.locator(PASSKEY_BUTTON).click();
+        waitForEnd(STEP_END_SELECTOR);
+        return result();
+    }
+
+    void clearCookies() {
+        context.clearCookies();
+    }
+
+    VirtualAuthenticator addVirtualAuthenticator() {
+        CDPSession session = context.newCDPSession(page);
+        session.send("WebAuthn.enable");
+        JsonObject options = new JsonObject();
+        options.addProperty("protocol", "ctap2");
+        options.addProperty("transport", "internal");
+        options.addProperty("hasResidentKey", true);
+        options.addProperty("hasUserVerification", true);
+        options.addProperty("isUserVerified", true);
+        options.addProperty("automaticPresenceSimulation", true);
+        JsonObject params = new JsonObject();
+        params.add("options", options);
+        String id = session.send("WebAuthn.addVirtualAuthenticator", params).get("authenticatorId").getAsString();
+        return new VirtualAuthenticator(session, id);
+    }
+
+    static final class VirtualAuthenticator {
+
+        private final CDPSession session;
+        private final String id;
+
+        private VirtualAuthenticator(CDPSession session, String id) {
+            this.session = session;
+            this.id = id;
+        }
+
+        List<JsonObject> credentials() {
+            JsonObject params = new JsonObject();
+            params.addProperty("authenticatorId", id);
+            JsonArray credentials = session.send("WebAuthn.getCredentials", params).getAsJsonArray("credentials");
+            return credentials.asList().stream().map(JsonObject.class::cast).toList();
+        }
     }
 
     LoginResult loginWithoutUsername(String realm, String clientId, String password) {
