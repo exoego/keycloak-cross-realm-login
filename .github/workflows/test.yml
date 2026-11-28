@@ -67,10 +67,6 @@ jobs:
           KEYCLOAK_VERSION: ${{ matrix.keycloak }}
         run: ${{ matrix.chooser && 'xvfb-run -a -s "-screen 0 1280x1024x24" ' || '' }}./gradlew check -PtestJavaVersion=${{ matrix.java }} -PtestKeycloakVersion="$KEYCLOAK_VERSION" ${{ matrix.chooser && '-Pchooser' || '' }}
 
-      - name: Show the chooser result
-        if: always() && matrix.chooser
-        run: grep -o '<testcase name="theChooser[^>]*>' build/test-results/integrationTest/TEST-net.exoego.keycloak.crossrealm.PasskeysInSeveralRealmsIT.xml; grep -c '<skipped' build/test-results/integrationTest/TEST-net.exoego.keycloak.crossrealm.PasskeysInSeveralRealmsIT.xml || true
-
       - name: Upload coverage to Codecov
         if: matrix.java == 21 && matrix.keycloak == ''
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
