@@ -92,7 +92,7 @@ final class PasskeyChooser {
                     app = desktop.get_child_at_index(i)
                     if app is not None:
                         walk(app, seen)
-                rows = [n for role, name, n in seen if role == "push button" and name and name.startswith(user)]
+                rows = [n for role, name, n in seen if role in ("push button", "button") and name and name.startswith(user)]
                 if len(rows) >= 2:
                     if wanted >= len(rows):
                         sys.exit("The passkey chooser has " + str(len(rows)) + " rows, not " + str(wanted + 1))
