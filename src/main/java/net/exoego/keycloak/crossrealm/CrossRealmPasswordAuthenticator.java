@@ -11,16 +11,20 @@ import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 
 import org.jboss.logging.Logger;
+import org.keycloak.WebAuthnConstants;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.AuthenticationFlowError;
 import org.keycloak.authentication.Authenticator;
 import org.keycloak.authentication.authenticators.browser.AbstractUsernameFormAuthenticator;
+import org.keycloak.authentication.authenticators.browser.WebAuthnConditionalUIAuthenticator;
 import org.keycloak.authentication.authenticators.util.AuthenticatorUtils;
 import org.keycloak.component.ComponentModel;
+import org.keycloak.forms.login.LoginFormsProvider;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.credential.PasswordCredentialModel;
+import org.keycloak.models.credential.WebAuthnCredentialModel;
 import org.keycloak.models.utils.FormMessage;
 import org.keycloak.representations.idm.CredentialRepresentation;
 import org.keycloak.services.managers.AuthenticationManager;
@@ -38,7 +42,7 @@ final class CrossRealmPasswordAuthenticator implements Authenticator {
 
     @Override
     public void authenticate(AuthenticationFlowContext context) {
-        context.challenge(context.form().createLoginUsernamePassword());
+        context.challenge(loginForm(context).createLoginUsernamePassword());
     }
 
     @Override
@@ -49,8 +53,13 @@ final class CrossRealmPasswordAuthenticator implements Authenticator {
             return;
         }
         forgetMatches(context);
-        String identifier = form.getFirst(AuthenticationManager.FORM_USERNAME);
         HomeRealmLogins logins = logins(context);
+        if (passkeysOn(context) && (form.containsKey(WebAuthnConstants.AUTHENTICATOR_DATA)
+                || form.containsKey(WebAuthnConstants.ERROR))) {
+            passkey(context, logins, form);
+            return;
+        }
+        String identifier = form.getFirst(AuthenticationManager.FORM_USERNAME);
         List<HomeAttempt> attempts = attempts(context, logins, identifier,
                 form.getFirst(CredentialRepresentation.PASSWORD));
         List<Candidate> matches = attempts.stream().filter(HomeAttempt::matches).map(HomeAttempt::candidate).toList();
@@ -63,6 +72,34 @@ final class CrossRealmPasswordAuthenticator implements Authenticator {
         } else {
             offerChoice(context, identifier, matches);
         }
+    }
+
+    private static void passkey(AuthenticationFlowContext context, HomeRealmLogins logins,
+            MultivaluedMap<String, String> form) {
+        HomeRealmPasskeys.Outcome outcome = new HomeRealmPasskeys(context.getSession(), logins).verify(context, form);
+        if (outcome.candidate() != null) {
+            context.setUser(proxyUser(context, outcome.candidate()));
+            context.success(WebAuthnCredentialModel.TYPE_PASSWORDLESS);
+            return;
+        }
+        passkeyError(context, outcome.errorKey());
+    }
+
+    private static void passkeyError(AuthenticationFlowContext context, String messageKey) {
+        Response challenge = loginForm(context).setError(messageKey).createLoginUsernamePassword();
+        context.failureChallenge(AuthenticationFlowError.INVALID_CREDENTIALS, challenge);
+    }
+
+    private static boolean passkeysOn(AuthenticationFlowContext context) {
+        return WebAuthnConditionalUIAuthenticator.isPasskeysEnabled(context.getSession());
+    }
+
+    private static LoginFormsProvider loginForm(AuthenticationFlowContext context) {
+        if (passkeysOn(context) && context.getUser() == null) {
+            new WebAuthnConditionalUIAuthenticator(context.getSession(),
+                    flow -> flow.form().createLoginUsernamePassword()).fillContextForm(context);
+        }
+        return context.form();
     }
 
     private static void offerChoice(AuthenticationFlowContext context, String identifier, List<Candidate> matches) {
@@ -144,7 +181,7 @@ final class CrossRealmPasswordAuthenticator implements Authenticator {
     }
 
     private static void invalidCredentials(AuthenticationFlowContext context) {
-        Response challenge = context.form()
+        Response challenge = loginForm(context)
                 .addError(new FormMessage(Validation.FIELD_USERNAME, Messages.INVALID_USER))
                 .createLoginUsernamePassword();
         context.failureChallenge(AuthenticationFlowError.INVALID_CREDENTIALS, challenge);

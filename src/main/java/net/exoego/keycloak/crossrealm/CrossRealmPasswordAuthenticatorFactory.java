@@ -69,7 +69,7 @@ public class CrossRealmPasswordAuthenticatorFactory implements AuthenticatorFact
 
     @Override
     public String getHelpText() {
-        return "Checks the username and the password against the users of the home realms.";
+        return "Checks the username and the password, or a passkey, against the users of the home realms.";
     }
 
     @Override

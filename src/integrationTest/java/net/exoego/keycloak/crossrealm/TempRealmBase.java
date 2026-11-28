@@ -70,6 +70,48 @@ abstract class TempRealmBase implements AutoCloseable {
         realm.update(rep);
     }
 
+    final void addPublicClient(String clientId) {
+        ClientRepresentation client = new ClientRepresentation();
+        client.setClientId(clientId);
+        client.setPublicClient(true);
+        client.setRedirectUris(List.of(Browser.REDIRECT_URI));
+        try (Response response = realm.clients().create(client)) {
+            assertEquals(201, response.getStatus(), response.readEntity(String.class));
+        }
+    }
+
+    final void allowPasskeys() {
+        RealmRepresentation rep = realm.toRepresentation();
+        rep.setWebAuthnPolicyPasswordlessPasskeysEnabled(true);
+        rep.setWebAuthnPolicyPasswordlessMediation("none");
+        realm.update(rep);
+    }
+
+    final void setPasskeyUserVerification(String requirement) {
+        RealmRepresentation rep = realm.toRepresentation();
+        rep.setWebAuthnPolicyPasswordlessUserVerificationRequirement(requirement);
+        realm.update(rep);
+    }
+
+    final void setPasskeyRelyingPartyId(String rpId) {
+        RealmRepresentation rep = realm.toRepresentation();
+        rep.setWebAuthnPolicyPasswordlessRpId(rpId);
+        realm.update(rep);
+    }
+
+    final void setName(String userId, String firstName, String lastName) {
+        UserRepresentation user = realm.users().get(userId).toRepresentation();
+        user.setFirstName(firstName);
+        user.setLastName(lastName);
+        realm.users().get(userId).update(user);
+    }
+
+    final void requireAction(String userId, String action) {
+        UserRepresentation user = realm.users().get(userId).toRepresentation();
+        user.setRequiredActions(List.of(action));
+        realm.users().get(userId).update(user);
+    }
+
     final void lockOutPermanently() {
         RealmRepresentation rep = realm.toRepresentation();
         rep.setPermanentLockout(true);

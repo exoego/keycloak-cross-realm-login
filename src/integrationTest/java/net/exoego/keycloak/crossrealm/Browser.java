@@ -18,11 +18,14 @@ import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.gson.JsonObject;
 import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.BrowserType;
+import com.microsoft.playwright.CDPSession;
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
+import com.microsoft.playwright.options.LoadState;
 import com.sun.net.httpserver.HttpServer;
 
 final class Browser implements AutoCloseable {
@@ -32,6 +35,8 @@ final class Browser implements AutoCloseable {
     static final boolean HEADED = Boolean.getBoolean("browser.headed");
 
     private static final String LOGIN_FORM = "form#kc-form-login";
+    private static final String PASSKEY_REGISTER_BUTTON = "#registerWebAuthn";
+    private static final String PASSKEY_BUTTON = "#authenticateWebAuthnButton";
     private static final String CHOOSER = "form#cross-realm-choices";
     private static final String MESSAGE_SELECTOR = "#input-error, #kc-error-message, .kc-feedback-text";
     private static final String STEP_END_SELECTOR = MESSAGE_SELECTOR + ", " + CHOOSER;
@@ -65,7 +70,15 @@ final class Browser implements AutoCloseable {
     }
 
     LoginResult login(String realm, String clientId, String username, String password) {
-        open(realm, clientId);
+        return login(realm, clientId, username, password, "");
+    }
+
+    LoginResult loginAgain(String realm, String clientId, String username, String password) {
+        return login(realm, clientId, username, password, "&prompt=login");
+    }
+
+    private LoginResult login(String realm, String clientId, String username, String password, String extraQuery) {
+        open(realm, clientId, extraQuery);
         waitForEnd(LOGIN_FORM + ", " + STEP_END_SELECTOR);
         if (!page.url().startsWith(REDIRECT_URI) && page.locator(LOGIN_FORM).count() > 0) {
             page.locator("#username").fill(username);
@@ -74,6 +87,49 @@ final class Browser implements AutoCloseable {
             waitForEnd(STEP_END_SELECTOR);
         }
         return result();
+    }
+
+    LoginResult loginAndRegisterPasskey(String realm, String clientId, String username, String password) {
+        open(realm, clientId);
+        waitForEnd(LOGIN_FORM + ", " + STEP_END_SELECTOR);
+        page.locator("#username").fill(username);
+        page.locator("#password").fill(password);
+        page.locator("#kc-login").click();
+        waitForEnd(PASSKEY_REGISTER_BUTTON + ", " + STEP_END_SELECTOR);
+        page.waitForLoadState(LoadState.DOMCONTENTLOADED);
+        markPage();
+        page.locator(PASSKEY_REGISTER_BUTTON).click();
+        waitForEnd(STEP_END_SELECTOR);
+        return result();
+    }
+
+    LoginResult loginWithPasskey(String realm, String clientId) {
+        open(realm, clientId);
+        waitForEnd(LOGIN_FORM + ", " + STEP_END_SELECTOR);
+        page.waitForLoadState(LoadState.DOMCONTENTLOADED);
+        markPage();
+        page.locator(PASSKEY_BUTTON).click();
+        waitForEnd(STEP_END_SELECTOR);
+        return result();
+    }
+
+    void clearCookies() {
+        context.clearCookies();
+    }
+
+    void addVirtualAuthenticator() {
+        CDPSession session = context.newCDPSession(page);
+        session.send("WebAuthn.enable");
+        JsonObject options = new JsonObject();
+        options.addProperty("protocol", "ctap2");
+        options.addProperty("transport", "internal");
+        options.addProperty("hasResidentKey", true);
+        options.addProperty("hasUserVerification", true);
+        options.addProperty("isUserVerified", true);
+        options.addProperty("automaticPresenceSimulation", true);
+        JsonObject params = new JsonObject();
+        params.add("options", options);
+        session.send("WebAuthn.addVirtualAuthenticator", params);
     }
 
     LoginResult loginWithoutUsername(String realm, String clientId, String password) {
@@ -169,6 +225,37 @@ final class Browser implements AutoCloseable {
                 + " document.body.appendChild(copy);"
                 + " copy.submit();"
                 + " }", Map.of("username", username, "password", password));
+        waitForEnd(LOGIN_FORM + ", " + STEP_END_SELECTOR);
+        return result();
+    }
+
+    LoginResult postPasskeyForm(String realm, String clientId, Map<String, String> fields) {
+        open(realm, clientId);
+        waitForEnd(LOGIN_FORM + ", " + STEP_END_SELECTOR);
+        return postPasskeyFormOfThisPage(fields);
+    }
+
+    LoginResult postPasskeyFormOfThisPage(Map<String, String> fields) {
+        markPage();
+        page.evaluate("values => {"
+                + " let form = document.querySelector('form#webauth');"
+                + " if (form === null) {"
+                + "   form = document.createElement('form');"
+                + "   form.method = 'post';"
+                + "   form.action = document.querySelector('form#kc-form-login').action;"
+                + "   document.body.appendChild(form);"
+                + " }"
+                + " for (const name of ['clientDataJSON', 'authenticatorData', 'signature', 'credentialId',"
+                + "     'userHandle', 'error']) {"
+                + "   let input = form.querySelector('input[name=' + name + ']');"
+                + "   if (input === null) {"
+                + "     input = document.createElement('input');"
+                + "     input.type = 'hidden'; input.name = name; form.appendChild(input);"
+                + "   }"
+                + "   input.value = values[name] || '';"
+                + " }"
+                + " form.submit();"
+                + " }", fields);
         waitForEnd(LOGIN_FORM + ", " + STEP_END_SELECTOR);
         return result();
     }

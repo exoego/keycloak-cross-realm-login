@@ -62,17 +62,30 @@ final class HomeRealmLogins {
         for (HomeAttempt attempt : attempts) {
             RealmModel home = attempt.candidate().realm();
             HomeRealmContext.run(session, home, () -> {
-                new EventBuilder(home, session, connection)
-                        .event(EventType.LOGIN)
-                        .user(attempt.candidate().user())
-                        .detail(Details.USERNAME, identifier == null ? null : identifier.trim())
-                        .detail(ENTRY_REALM, entryRealm.getName())
-                        .error(errorOf(attempt));
+                writeEvent(attempt, identifier);
                 if (attempt.countsAsFailure() && home.isBruteForceProtected()) {
                     protector.failedLogin(home, attempt.candidate().user(), connection, uri(), failureCategories());
                 }
             });
         }
+    }
+
+    void recordEvent(HomeAttempt attempt, String identifier) {
+        HomeRealmContext.run(session, attempt.candidate().realm(), () -> writeEvent(attempt, identifier));
+    }
+
+    String lockoutError(Candidate candidate) {
+        return AuthenticatorUtils.getDisabledByBruteForceEventError(protector, session, candidate.realm(),
+                candidate.user());
+    }
+
+    private void writeEvent(HomeAttempt attempt, String identifier) {
+        new EventBuilder(attempt.candidate().realm(), session, connection)
+                .event(EventType.LOGIN)
+                .user(attempt.candidate().user())
+                .detail(Details.USERNAME, identifier == null ? null : identifier.trim())
+                .detail(ENTRY_REALM, entryRealm.getName())
+                .error(errorOf(attempt));
     }
 
     private void dummyHash(RealmModel home) {
@@ -81,11 +94,6 @@ final class HomeRealmLogins {
                 ? session.getProvider(PasswordHashProvider.class, policy.getHashAlgorithm())
                 : session.getProvider(PasswordHashProvider.class);
         provider.encodedCredential("SlightlyLongerDummyPassword", policy != null ? policy.getHashIterations() : -1);
-    }
-
-    private String lockoutError(Candidate candidate) {
-        return AuthenticatorUtils.getDisabledByBruteForceEventError(protector, session, candidate.realm(),
-                candidate.user());
     }
 
     private static String errorOf(HomeAttempt attempt) {

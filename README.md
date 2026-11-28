@@ -26,6 +26,7 @@ See [Concepts](docs/concepts.md) for the terms, and [Decisions](docs/decisions.m
 This project is in early development. There is no release.
 
 A user can log in at the entry realm with a password.
+A user can also log in at the entry realm with a passkey of the home realm.
 When the password matches users in several home realms, the page asks which realm to use.
 The brute force protection of the home realm applies to these logins.
 A login from the entry realm rehashes the password by the policy of the home realm.
@@ -33,6 +34,19 @@ A failed login writes an event in the home realm.
 The client cannot yet go on to the home realm.
 
 The [open issues](https://github.com/exoego/keycloak-cross-realm-login/issues) show what is planned.
+
+## Passkeys
+
+The entry realm and the home realms must share the relying party ID.
+The default is the host name, so all realms must be served from one host name.
+
+The passwordless policy of the entry realm turns the passkey button on.
+The home realm decides the checks.
+It uses its own relying party ID, its own extra origins, and its own lockout.
+It checks user verification when its own policy or the policy of the entry realm requires it.
+
+A failed passkey does not count as a failed login for the brute force protection.
+It writes an event in the home realm.
 
 ## Configuration
 

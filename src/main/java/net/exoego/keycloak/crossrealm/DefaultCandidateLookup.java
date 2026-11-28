@@ -107,6 +107,16 @@ final class DefaultCandidateLookup implements CandidateLookup {
     }
 
     @Override
+    public Optional<Candidate> findByUserId(RealmModel entryRealm, String userId) {
+        Objects.requireNonNull(entryRealm, "entryRealm");
+        if (userId == null || userId.isEmpty() || userId.indexOf('\0') >= 0) {
+            return Optional.empty();
+        }
+        UserEntity user = entityManager().find(UserEntity.class, userId);
+        return user == null ? Optional.empty() : find(entryRealm, user.getRealmId(), userId);
+    }
+
+    @Override
     public void close() {
     }
 
