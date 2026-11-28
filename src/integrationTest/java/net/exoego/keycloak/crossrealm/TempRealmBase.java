@@ -27,6 +27,7 @@ abstract class TempRealmBase implements AutoCloseable {
     TempRealmBase(String prefix, RealmRepresentation rep) {
         name = prefix + UUID.randomUUID();
         rep.setRealm(name);
+        SharedRealmKeys.addTo(rep);
         ADMIN.realms().create(rep);
         realm = ADMIN.realm(name);
     }
