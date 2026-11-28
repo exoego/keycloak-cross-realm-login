@@ -84,6 +84,7 @@ final class PasskeyChooser {
                     pass
 
             seen = []
+            pressed = False
             deadline = time.time() + 15
             while time.time() < deadline:
                 seen = []
@@ -97,8 +98,14 @@ final class PasskeyChooser {
                     if wanted >= len(rows):
                         sys.exit("The passkey chooser has " + str(len(rows)) + " rows, not " + str(wanted + 1))
                     Atspi.Action.do_action(rows[wanted], 0)
+                    pressed = True
+                    time.sleep(1)
+                    continue
+                if pressed:
                     sys.exit(0)
                 time.sleep(0.2)
+            if pressed:
+                sys.exit("The passkey chooser did not close after the press")
             lines = [role + " " + repr(name) for role, name, n in seen if name]
             sys.exit("The passkey chooser did not show two passkeys of " + user + chr(10) + chr(10).join(lines))
             """;
