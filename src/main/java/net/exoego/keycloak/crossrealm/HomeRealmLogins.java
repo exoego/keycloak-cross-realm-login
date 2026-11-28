@@ -39,7 +39,7 @@ final class HomeRealmLogins {
     }
 
     HomeAttempt check(Candidate candidate, String password) {
-        return HomeRealmContext.call(session, candidate.realm(), () -> {
+        return HomeRealmContext.callIncludingAfterCompletion(session, candidate.realm(), () -> {
             UserModel user = candidate.user();
             String lockout = lockoutError(candidate);
             // A locked-out user gets a dummy hash, so it costs about the same time and no user federation sees the password.

@@ -64,6 +64,12 @@ abstract class TempRealmBase implements AutoCloseable {
         realm.update(rep);
     }
 
+    final void setPasswordPolicy(String policy) {
+        RealmRepresentation rep = realm.toRepresentation();
+        rep.setPasswordPolicy(policy);
+        realm.update(rep);
+    }
+
     final void lockOutPermanently() {
         RealmRepresentation rep = realm.toRepresentation();
         rep.setPermanentLockout(true);
