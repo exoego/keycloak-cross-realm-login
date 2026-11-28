@@ -16,14 +16,12 @@ import org.keycloak.models.UserModel;
 import org.keycloak.storage.StorageId;
 import org.keycloak.storage.adapter.AbstractUserAdapter;
 
-/** A read-only copy of a home realm user, as the entry realm shows it. The copy is not stored. */
 final class CrossRealmUser extends AbstractUserAdapter {
 
     private final Map<String, String> profile;
     private final boolean emailVerified;
     private final boolean enabled;
 
-    /** Reads the home user at once, so the caller must run it with the home realm as the context realm. */
     CrossRealmUser(KeycloakSession session, RealmModel entryRealm, ComponentModel component, HomeUserId id,
             UserModel homeUser) {
         super(session, entryRealm, component);
@@ -69,7 +67,6 @@ final class CrossRealmUser extends AbstractUserAdapter {
         return enabled;
     }
 
-    // The mappers of the email and profile scopes read attributes, not the getters.
     @Override
     public String getFirstAttribute(String name) {
         return profile.get(name);
@@ -87,7 +84,6 @@ final class CrossRealmUser extends AbstractUserAdapter {
         return attributes;
     }
 
-    // Keycloak adds and removes required actions of a user during a login. A proxy user has none and keeps none.
     @Override
     public void addRequiredAction(String action) {
     }

@@ -18,7 +18,6 @@ import static net.exoego.keycloak.crossrealm.KeycloakEnvironment.ADMIN;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** A realm with a random name for one test. */
 abstract class TempRealmBase implements AutoCloseable {
 
     private final String name;
@@ -44,33 +43,28 @@ abstract class TempRealmBase implements AutoCloseable {
         return realm;
     }
 
-    /** Sets the display name of the realm. */
     final void setDisplayName(String displayName) {
         RealmRepresentation rep = realm.toRepresentation();
         rep.setDisplayName(displayName);
         realm.update(rep);
     }
 
-    /** Disables the realm. */
     final void disable() {
         RealmRepresentation rep = realm.toRepresentation();
         rep.setEnabled(false);
         realm.update(rep);
     }
 
-    /** Disables a user of the realm. */
     final void disableUser(String userId) {
         UserRepresentation user = realm.users().get(userId).toRepresentation();
         user.setEnabled(false);
         realm.users().get(userId).update(user);
     }
 
-    /** Creates a user with a verified email address and returns the ID. */
     final String addUser(String username, String password, boolean enabled) {
         return addUser(username, username + "@" + name + ".example", true, password, enabled);
     }
 
-    /** Creates an enabled user and returns the ID. */
     final String addUser(String username, String email, boolean emailVerified, String password) {
         return addUser(username, email, emailVerified, password, true);
     }
@@ -88,7 +82,6 @@ abstract class TempRealmBase implements AutoCloseable {
         }
     }
 
-    /** Creates a client with a service account, sets the email address of the account and returns its user ID. */
     final String addServiceAccount(String clientId, String email) {
         ClientRepresentation client = new ClientRepresentation();
         client.setClientId(clientId);
@@ -106,24 +99,20 @@ abstract class TempRealmBase implements AutoCloseable {
         return account.getId();
     }
 
-    /** Sets the realm to match users by email address, as the default does. */
     final void allowLoginWithEmail() {
         RealmRepresentation rep = realm.toRepresentation();
         rep.setLoginWithEmailAllowed(true);
-        // Keycloak turns login with email off again when the same update allows duplicate emails.
         rep.setDuplicateEmailsAllowed(false);
         realm.update(rep);
         assertTrue(realm.toRepresentation().isLoginWithEmailAllowed());
     }
 
-    /** Sets the realm to refuse the email address as a login name. */
     final void forbidLoginWithEmail() {
         RealmRepresentation rep = realm.toRepresentation();
         rep.setLoginWithEmailAllowed(false);
         realm.update(rep);
     }
 
-    /** Lets two users have one email address. This turns off login with email. */
     final void allowDuplicateEmails() {
         RealmRepresentation rep = realm.toRepresentation();
         rep.setLoginWithEmailAllowed(false);
@@ -139,7 +128,6 @@ abstract class TempRealmBase implements AutoCloseable {
         return credential;
     }
 
-    /** Turns organizations on for the realm, creates an organization and returns the ID. */
     final String addOrganization(String alias, String domain) {
         RealmRepresentation rep = realm.toRepresentation();
         rep.setOrganizationsEnabled(true);

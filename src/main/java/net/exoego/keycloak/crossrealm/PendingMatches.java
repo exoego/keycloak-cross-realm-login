@@ -5,11 +5,6 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
 
-/**
- * The matches that wait for the choice of the user, as the value of an auth note.
- * Each part is encoded, because an ID of an imported realm can hold any character.
- * The encoded text has no colon and no comma.
- */
 record PendingMatches(List<HomeUserId> matches) {
 
     static final String NOTE = "cross-realm-matches";

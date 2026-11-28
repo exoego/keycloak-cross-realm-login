@@ -11,14 +11,12 @@ import org.keycloak.models.KeycloakSessionFactory;
 import org.keycloak.models.credential.PasswordCredentialModel;
 import org.keycloak.provider.ProviderConfigProperty;
 
-/** The username and password form for the entry realm. */
 public class CrossRealmPasswordAuthenticatorFactory implements AuthenticatorFactory {
 
     public static final String ID = "cross-realm-password";
 
     private static final Authenticator AUTHENTICATOR = new CrossRealmPasswordAuthenticator();
 
-    /** Keycloak creates the factory through {@link java.util.ServiceLoader}. */
     public CrossRealmPasswordAuthenticatorFactory() {
     }
 

@@ -135,7 +135,6 @@ class HomeRealmContextTest {
                         current = (RealmModel) args[0];
                         String name = String.valueOf(current);
                         seen.add(name);
-                        // Keycloak stores the realm first, and the steps after that can fail.
                         if (name.equals(failsFor)) {
                             throw new IllegalStateException(name);
                         }

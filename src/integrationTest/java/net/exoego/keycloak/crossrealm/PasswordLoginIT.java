@@ -127,7 +127,6 @@ class PasswordLoginIT {
         assertTrue(proxyId.startsWith("f:"));
 
         Database.assertNothingStoredFor(realmId(ENTRY));
-        // The check can see a user that is stored.
         assertEquals(1, Database.count("credential", "user_id = '" + userId("home-a", "alice") + "'"));
     }
 
