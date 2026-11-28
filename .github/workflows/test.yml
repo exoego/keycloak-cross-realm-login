@@ -69,7 +69,7 @@ jobs:
 
       - name: Show the chooser testcase
         if: always() && matrix.chooser
-        run: grep -h -A60 'Chooser' build/test-results/integrationTest/*.xml | head -120
+        run: grep -h -A25 'name="theChooserOfChrome' build/test-results/integrationTest/*.xml | cut -c1-500
 
       - name: Upload coverage to Codecov
         if: matrix.java == 21 && matrix.keycloak == ''
