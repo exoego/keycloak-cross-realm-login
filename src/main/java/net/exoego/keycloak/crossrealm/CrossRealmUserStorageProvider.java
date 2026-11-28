@@ -32,7 +32,8 @@ final class CrossRealmUserStorageProvider implements UserStorageProvider, UserLo
             return null;
         }
         return HomeRealmContext.call(session, candidate.get().realm(),
-                () -> new CrossRealmUser(session, realm, component, home.get(), candidate.get().user()));
+                () -> new CrossRealmUser(session, realm, component, home.get(), candidate.get().realm(),
+                        candidate.get().user()));
     }
 
     @Override

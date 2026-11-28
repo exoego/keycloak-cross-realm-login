@@ -18,12 +18,15 @@ import org.keycloak.storage.adapter.AbstractUserAdapter;
 
 final class CrossRealmUser extends AbstractUserAdapter {
 
+    static final String HOME_REALM = "home_realm";
+    static final String HOME_REALM_DISPLAY_NAME = "home_realm_display_name";
+
     private final Map<String, String> profile;
     private final boolean emailVerified;
     private final boolean enabled;
 
     CrossRealmUser(KeycloakSession session, RealmModel entryRealm, ComponentModel component, HomeUserId id,
-            UserModel homeUser) {
+            RealmModel homeRealm, UserModel homeUser) {
         super(session, entryRealm, component);
         storageId = new StorageId(component.getId(), id.externalId());
         Map<String, String> values = new HashMap<>();
@@ -31,10 +34,20 @@ final class CrossRealmUser extends AbstractUserAdapter {
         values.put(UserModel.EMAIL, homeUser.getEmail());
         values.put(UserModel.FIRST_NAME, homeUser.getFirstName());
         values.put(UserModel.LAST_NAME, homeUser.getLastName());
+        values.putAll(homeRealmValues(homeRealm.getName(), homeRealm.getDisplayName()));
         values.values().removeIf(Objects::isNull);
         profile = Collections.unmodifiableMap(values);
         emailVerified = homeUser.isEmailVerified();
         enabled = homeUser.isEnabled();
+    }
+
+    static Map<String, String> homeRealmValues(String name, String displayName) {
+        Map<String, String> values = new HashMap<>();
+        values.put(HOME_REALM, name);
+        if (displayName != null && !displayName.isBlank()) {
+            values.put(HOME_REALM_DISPLAY_NAME, displayName);
+        }
+        return values;
     }
 
     @Override
