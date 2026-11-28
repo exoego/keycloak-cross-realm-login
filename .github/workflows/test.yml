@@ -50,7 +50,7 @@ jobs:
 
       - name: Install the display tools
         if: matrix.chooser
-        run: sudo apt-get install -y xvfb xdotool imagemagick
+        run: sudo apt-get install -y xvfb dbus-x11 at-spi2-core python3-gi gir1.2-atspi-2.0
 
       - name: Install the browser
         run: ./gradlew installBrowser -PplaywrightDeps ${{ matrix.chooser && '-Pchooser' || '' }}
@@ -65,7 +65,7 @@ jobs:
       - name: Run Tests
         env:
           KEYCLOAK_VERSION: ${{ matrix.keycloak }}
-        run: ${{ matrix.chooser && 'xvfb-run -a -s "-screen 0 1280x1024x24" ' || '' }}./gradlew check -PtestJavaVersion=${{ matrix.java }} -PtestKeycloakVersion="$KEYCLOAK_VERSION" ${{ matrix.chooser && '-Pchooser' || '' }}
+        run: ${{ matrix.chooser && 'xvfb-run -a -s "-screen 0 1280x1024x24" dbus-run-session -- ' || '' }}./gradlew check -PtestJavaVersion=${{ matrix.java }} -PtestKeycloakVersion="$KEYCLOAK_VERSION" ${{ matrix.chooser && '-Pchooser' || '' }}
 
       - name: Upload coverage to Codecov
         if: matrix.java == 21 && matrix.keycloak == ''

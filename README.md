@@ -87,7 +87,7 @@ The tests run only with PostgreSQL. The other databases of Keycloak may work, an
 
 ## Testing
 
-The test of the passkey chooser of Chrome is off by default. Run it with `./gradlew integrationTest -Pchooser`. On macOS the terminal app needs the accessibility permission to control Chrome through System Events, and on Linux it needs `xdotool` and a display.
+The test of the passkey chooser of Chrome is off by default. Run it with `./gradlew integrationTest -Pchooser`. On macOS the terminal app needs the accessibility permission to control Chrome through System Events, and on Linux it needs a display, a D-Bus session, and AT-SPI with its Python bindings (`xvfb dbus-x11 at-spi2-core python3-gi gir1.2-atspi-2.0`). Run Gradle under `xvfb-run dbus-run-session --`.
 
 ## Contributing
 

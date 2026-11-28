@@ -61,12 +61,47 @@ final class PasskeyChooser {
             end run
             """;
 
-    private static final String ROW_X = "650";
-    private static final String[] ROW_Y = {"345", "410"};
-    private static final String DIALOG_PIXEL = "1x1+840+270";
-    private static final long LINUX_WAIT_MILLIS = 15000;
-    private static final long LINUX_POLL_MILLIS = 200;
-    private static final long POINTER_WAIT_MILLIS = 500;
+    private static final String LINUX_SCRIPT = """
+            import sys
+            import time
+
+            import gi
+
+            gi.require_version("Atspi", "2.0")
+            from gi.repository import Atspi
+
+            user = sys.argv[1]
+            wanted = int(sys.argv[2])
+
+            def walk(node, found):
+                try:
+                    found.append((node.get_role_name(), node.get_name(), node))
+                    for i in range(node.get_child_count()):
+                        child = node.get_child_at_index(i)
+                        if child is not None:
+                            walk(child, found)
+                except Exception:
+                    pass
+
+            seen = []
+            deadline = time.time() + 15
+            while time.time() < deadline:
+                seen = []
+                desktop = Atspi.get_desktop(0)
+                for i in range(desktop.get_child_count()):
+                    app = desktop.get_child_at_index(i)
+                    if app is not None:
+                        walk(app, seen)
+                rows = [n for role, name, n in seen if role == "push button" and name and name.startswith(user)]
+                if len(rows) >= 2:
+                    if wanted >= len(rows):
+                        sys.exit("The passkey chooser has " + str(len(rows)) + " rows, not " + str(wanted + 1))
+                    Atspi.Action.do_action(rows[wanted], 0)
+                    sys.exit(0)
+                time.sleep(0.2)
+            lines = [role + " " + repr(name) for role, name, n in seen if name]
+            sys.exit("The passkey chooser did not show two passkeys of " + user + chr(10) + chr(10).join(lines))
+            """;
 
     private PasskeyChooser() {
     }
@@ -76,22 +111,9 @@ final class PasskeyChooser {
         if (os.contains("mac")) {
             run(List.of("osascript", "-", username, Integer.toString(index)), MAC_SCRIPT);
         } else if (os.contains("linux")) {
-            waitForDialogOnLinux();
-            run(List.of("xdotool", "mousemove", ROW_X, ROW_Y[index]), null);
-            pause(POINTER_WAIT_MILLIS);
-            run(List.of("xdotool", "key", "Return"), null);
+            run(List.of("python3", "-", username, Integer.toString(index)), LINUX_SCRIPT);
         } else {
             throw new IllegalStateException("The passkey chooser is supported on macOS and Linux only, not on " + os);
-        }
-    }
-
-    private static void waitForDialogOnLinux() {
-        long deadline = System.nanoTime() + LINUX_WAIT_MILLIS * 1_000_000;
-        while (!run(List.of("import", "-window", "root", "-crop", DIALOG_PIXEL, "txt:-"), null).contains("#FFFFFF")) {
-            if (System.nanoTime() > deadline) {
-                throw new IllegalStateException("The passkey chooser did not show up on the display");
-            }
-            pause(LINUX_POLL_MILLIS);
         }
     }
 
@@ -114,15 +136,6 @@ final class PasskeyChooser {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("Interrupted while running " + command, e);
-        }
-    }
-
-    private static void pause(long millis) {
-        try {
-            Thread.sleep(millis);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IllegalStateException(e);
         }
     }
 }

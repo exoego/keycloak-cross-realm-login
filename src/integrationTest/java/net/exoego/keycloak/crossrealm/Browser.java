@@ -11,7 +11,9 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
@@ -70,8 +72,13 @@ final class Browser implements AutoCloseable {
     static Browser withChooser() {
         Playwright playwright = Playwright.create();
         try {
-            com.microsoft.playwright.Browser chromium = playwright.chromium()
-                    .launch(new BrowserType.LaunchOptions().setHeadless(false));
+            BrowserType.LaunchOptions options = new BrowserType.LaunchOptions().setHeadless(false);
+            if (System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("linux")) {
+                Map<String, String> env = new HashMap<>(System.getenv());
+                env.put("ACCESSIBILITY_ENABLED", "1");
+                options.setEnv(env).setArgs(List.of("--force-renderer-accessibility"));
+            }
+            com.microsoft.playwright.Browser chromium = playwright.chromium().launch(options);
             return new Browser(chromium.newContext(), playwright);
         } catch (RuntimeException e) {
             playwright.close();
