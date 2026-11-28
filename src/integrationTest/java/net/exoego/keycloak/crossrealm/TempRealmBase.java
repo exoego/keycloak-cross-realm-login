@@ -9,6 +9,7 @@ import org.keycloak.admin.client.CreatedResponseUtil;
 import org.keycloak.admin.client.resource.RealmResource;
 import org.keycloak.representations.idm.ClientRepresentation;
 import org.keycloak.representations.idm.CredentialRepresentation;
+import org.keycloak.representations.idm.EventRepresentation;
 import org.keycloak.representations.idm.OrganizationDomainRepresentation;
 import org.keycloak.representations.idm.OrganizationRepresentation;
 import org.keycloak.representations.idm.RealmRepresentation;
@@ -53,6 +54,39 @@ abstract class TempRealmBase implements AutoCloseable {
         RealmRepresentation rep = realm.toRepresentation();
         rep.setEnabled(false);
         realm.update(rep);
+    }
+
+    final void protectFromBruteForce(int failureFactor) {
+        RealmRepresentation rep = realm.toRepresentation();
+        rep.setBruteForceProtected(true);
+        rep.setFailureFactor(failureFactor);
+        rep.setQuickLoginCheckMilliSeconds(0L);
+        realm.update(rep);
+    }
+
+    final void lockOutPermanently() {
+        RealmRepresentation rep = realm.toRepresentation();
+        rep.setPermanentLockout(true);
+        rep.setMaxTemporaryLockouts(0);
+        realm.update(rep);
+    }
+
+    final void enableEvents() {
+        RealmRepresentation rep = realm.toRepresentation();
+        rep.setEventsEnabled(true);
+        realm.update(rep);
+    }
+
+    final int numFailures(String userId) {
+        return (Integer) realm.attackDetection().bruteForceUserStatus(userId).get("numFailures");
+    }
+
+    final boolean isLockedOut(String userId) {
+        return (Boolean) realm.attackDetection().bruteForceUserStatus(userId).get("disabled");
+    }
+
+    final List<EventRepresentation> loginErrors(String userId) {
+        return realm.getEvents(List.of("LOGIN_ERROR"), null, userId, null, null, null, null, null);
     }
 
     final void disableUser(String userId) {

@@ -106,6 +106,20 @@ class HomeRealmContextTest {
     }
 
     @Test
+    void runsTheRunnableInTheHomeRealmAndPutsTheOldRealmBack() {
+        HomeRealmContext.run(session, homeA, () -> assertSame(homeA, current));
+
+        assertSame(entry, current);
+    }
+
+    @Test
+    void failsFastWithoutARunnable() {
+        assertEquals("block",
+                assertThrows(NullPointerException.class, () -> HomeRealmContext.run(session, homeA, null)).getMessage());
+        assertEquals(List.of(), seen);
+    }
+
+    @Test
     void returnsNullFromTheBlock() {
         assertNull(HomeRealmContext.call(session, homeA, () -> null));
     }

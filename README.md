@@ -27,6 +27,8 @@ This project is in early development. There is no release.
 
 A user can log in at the entry realm with a password.
 When the password matches users in several home realms, the page asks which realm to use.
+The brute force protection of the home realm applies to these logins.
+A failed login writes an event in the home realm.
 The client cannot yet go on to the home realm.
 
 The [open issues](https://github.com/exoego/keycloak-cross-realm-login/issues) show what is planned.
