@@ -9,6 +9,9 @@ final class OsKeys {
 
     private static final long CHOOSER_WAIT_MILLIS = 3000;
     private static final long KEY_GAP_MILLIS = 500;
+    private static final String FIRST_ROW_X = "650";
+    private static final String FIRST_ROW_Y = "345";
+    private static final String SECOND_ROW_Y = "410";
 
     private OsKeys() {
     }
@@ -16,43 +19,38 @@ final class OsKeys {
     static void waitForChooser() {
         pause(CHOOSER_WAIT_MILLIS);
         if (isLinux()) {
-            run(List.of("xdotool", "mousemove", "0", "0"));
-            pause(KEY_GAP_MILLIS);
-            debug("after-wait");
-        }
-        if (isMac()) {
+            pointAt(FIRST_ROW_Y);
+        } else if (isMac()) {
             run(List.of("osascript", "-e", "tell application \"System Events\" to set frontmost of "
                     + "(first process whose name is \"Google Chrome for Testing\") to true"));
             pause(KEY_GAP_MILLIS);
         }
     }
 
-    static void debug(String tag) {
-        run(List.of("bash", "-c", "mkdir -p /tmp/dbg; (xprop -root _NET_SUPPORTING_WM_CHECK; xdotool getwindowfocus getwindowname;"
-                + " pgrep -a openbox; xwd -root -silent | convert xwd:- /tmp/dbg/" + tag + ".png) > /tmp/dbg/" + tag + ".txt 2>&1; true"));
-    }
-
-    static void choose(int index) {
-        int tabs = isLinux() ? index + 1 : index;
-        for (int i = 0; i < tabs; i++) {
-            press("Tab", 48);
-            pause(KEY_GAP_MILLIS);
-        }
-        press("Return", 36);
-        pause(1000);
+    static void next() {
         if (isLinux()) {
-            debug("after-enter");
-        }
-    }
-
-    private static void press(String xdotoolName, int macKeyCode) {
-        if (isLinux()) {
-            run(List.of("xdotool", "key", xdotoolName));
+            pointAt(SECOND_ROW_Y);
         } else if (isMac()) {
-            run(List.of("osascript", "-e", "tell application \"System Events\" to key code " + macKeyCode));
+            run(List.of("osascript", "-e", "tell application \"System Events\" to key code 48"));
+            pause(KEY_GAP_MILLIS);
         } else {
             throw unsupported();
         }
+    }
+
+    static void enter() {
+        if (isLinux()) {
+            run(List.of("xdotool", "key", "Return"));
+        } else if (isMac()) {
+            run(List.of("osascript", "-e", "tell application \"System Events\" to key code 36"));
+        } else {
+            throw unsupported();
+        }
+    }
+
+    private static void pointAt(String y) {
+        run(List.of("xdotool", "mousemove", FIRST_ROW_X, y));
+        pause(KEY_GAP_MILLIS);
     }
 
     private static boolean isLinux() {
