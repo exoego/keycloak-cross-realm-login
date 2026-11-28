@@ -9,18 +9,13 @@ final class OsKeys {
 
     private static final long CHOOSER_WAIT_MILLIS = 3000;
     private static final long KEY_GAP_MILLIS = 500;
-    private static final String FIRST_ROW_X = "650";
-    private static final String FIRST_ROW_Y = "345";
-    private static final String SECOND_ROW_Y = "410";
 
     private OsKeys() {
     }
 
     static void waitForChooser() {
         pause(CHOOSER_WAIT_MILLIS);
-        if (isLinux()) {
-            pointAt(FIRST_ROW_Y);
-        } else if (isMac()) {
+        if (isMac()) {
             run(List.of("osascript", "-e", "tell application \"System Events\" to set frontmost of "
                     + "(first process whose name is \"Google Chrome for Testing\") to true"));
             pause(KEY_GAP_MILLIS);
@@ -28,29 +23,22 @@ final class OsKeys {
     }
 
     static void next() {
-        if (isLinux()) {
-            pointAt(SECOND_ROW_Y);
-        } else if (isMac()) {
-            run(List.of("osascript", "-e", "tell application \"System Events\" to key code 48"));
-            pause(KEY_GAP_MILLIS);
-        } else {
-            throw unsupported();
-        }
+        press("Tab", 48);
+        pause(KEY_GAP_MILLIS);
     }
 
     static void enter() {
+        press("Return", 36);
+    }
+
+    private static void press(String xdotoolName, int macKeyCode) {
         if (isLinux()) {
-            run(List.of("xdotool", "key", "Return"));
+            run(List.of("xdotool", "key", xdotoolName));
         } else if (isMac()) {
-            run(List.of("osascript", "-e", "tell application \"System Events\" to key code 36"));
+            run(List.of("osascript", "-e", "tell application \"System Events\" to key code " + macKeyCode));
         } else {
             throw unsupported();
         }
-    }
-
-    private static void pointAt(String y) {
-        run(List.of("xdotool", "mousemove", FIRST_ROW_X, y));
-        pause(KEY_GAP_MILLIS);
     }
 
     private static boolean isLinux() {
