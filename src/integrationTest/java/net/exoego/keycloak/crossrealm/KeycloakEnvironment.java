@@ -38,6 +38,9 @@ final class KeycloakEnvironment {
                     "/home-no-email-login-realm.json",
                     "/home-disabled-realm.json", "/home-excluded-realm.json")
             .withEnv("KC_SPI_CROSS_REALM_LOGIN__DEFAULT__EXCLUDED_REALM_IDS", EXCLUDED_REALM_ID)
+            // Argon2 is the default hash of a new realm. A cheap hash saves much CPU, and no test depends on the cost.
+            .withEnv("KC_SPI_PASSWORD_HASHING__ARGON2__ITERATIONS", "1")
+            .withEnv("KC_SPI_PASSWORD_HASHING__ARGON2__MEMORY", "1024")
             .withEnv("KC_DB", "postgres")
             .withEnv("KC_DB_URL", "jdbc:postgresql://postgres:5432/keycloak")
             .withEnv("KC_DB_USERNAME", "keycloak")
