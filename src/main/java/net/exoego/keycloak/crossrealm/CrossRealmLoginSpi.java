@@ -4,7 +4,6 @@ import org.keycloak.provider.Provider;
 import org.keycloak.provider.ProviderFactory;
 import org.keycloak.provider.Spi;
 
-/** The SPI {@code cross-realm-login}. Keycloak finds it through {@link java.util.ServiceLoader}. */
 public class CrossRealmLoginSpi implements Spi {
 
     public static final String NAME = "cross-realm-login";

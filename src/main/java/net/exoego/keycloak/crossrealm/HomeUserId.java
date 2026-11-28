@@ -2,10 +2,6 @@ package net.exoego.keycloak.crossrealm;
 
 import java.util.Optional;
 
-/**
- * Names a user of a home realm. It is the external part of the ID of a proxy user.
- * The realm ID comes first, so it must not contain a colon.
- */
 record HomeUserId(String realmId, String userId) {
 
     static Optional<HomeUserId> parse(String externalId) {

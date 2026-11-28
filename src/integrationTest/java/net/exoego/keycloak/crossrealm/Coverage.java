@@ -10,10 +10,6 @@ import org.jacoco.core.tools.ExecDumpClient;
 import org.testcontainers.containers.BindMode;
 import org.testcontainers.utility.MountableFile;
 
-/**
- * Measures which code of the provider the integration tests run.
- * The provider runs in the JVM of Keycloak, so the JaCoCo agent runs there and the tests read its data out.
- */
 final class Coverage {
 
     private static final int PORT = 6300;
@@ -24,16 +20,12 @@ final class Coverage {
     private Coverage() {
     }
 
-    /** Adds the agent to a Keycloak container, when the build asks for it. */
     static KeycloakContainer measure(KeycloakContainer keycloak) {
         if (AGENT == null) {
             return keycloak;
         }
-        // Keycloak can rewrite a class when it builds the server.
-        // The agent writes the classes as it loads them, and the report needs exactly those.
         File classes = new File(CLASSES);
         classes.mkdirs();
-        // The user in the container is not the user of the build.
         classes.setWritable(true, false);
         return keycloak
                 .withCopyFileToContainer(MountableFile.forHostPath(AGENT), "/opt/jacoco/agent.jar")
@@ -43,7 +35,6 @@ final class Coverage {
                         + ",classdumpdir=/opt/jacoco/classes");
     }
 
-    /** The parent sets its own list of ports, so the port of the agent is added after it. */
     static KeycloakContainer keycloak(String image) {
         return new KeycloakContainer(image) {
             @Override
@@ -56,7 +47,6 @@ final class Coverage {
         };
     }
 
-    /** Saves what the container measured so far. Call it before the container stops. */
     static void save(KeycloakContainer keycloak) {
         if (AGENT == null || !keycloak.isRunning()) {
             return;

@@ -21,11 +21,6 @@ import static net.exoego.keycloak.crossrealm.Logins.userId;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-/**
- * Tests which users the entry realm finds in the home realms.
- * A login finds users by an identifier. The admin API finds a user by a proxy user ID.
- * A negative test gives the user a password, so the login would work if the rule did not hold.
- */
 class CandidatesIT {
 
     private static final String ENTRY = "entry";
@@ -98,7 +93,6 @@ class CandidatesIT {
         String suffix = UUID.randomUUID().toString();
         String lookAlike = "shared-" + suffix + "@example.com";
         try (TempRealm home = new TempRealm()) {
-            // Keycloak refuses this pair while the realm allows login with email, so that comes last.
             home.forbidLoginWithEmail();
             home.addUser(lookAlike, "x-" + suffix + "@example.com", false, "password-of-the-name");
             String ownerId = home.addUser("owner-" + suffix, lookAlike, false, "password-of-the-email");
@@ -131,7 +125,6 @@ class CandidatesIT {
         String suffix = UUID.randomUUID().toString();
         String lookAlike = "ops-" + suffix + "@example.com";
         try (TempRealm home = new TempRealm()) {
-            // Keycloak refuses this pair while the realm allows login with email, so that comes last.
             home.forbidLoginWithEmail();
             home.addUser(lookAlike, "other-" + suffix + "@example.com", true, "password-of-the-name");
             home.addServiceAccount("machine-" + suffix, lookAlike);
@@ -171,8 +164,6 @@ class CandidatesIT {
 
     @Test
     void doesNotShowTheUserOfTheRequestWithTheIdOfAnotherRealm() {
-        // The admin API of Keycloak loads the administrator when it checks the token.
-        // Keycloak 26.8.0 then returned that user for any realm.
         String admin = userId("master", KEYCLOAK.getAdminUsername());
 
         assertNotFound(ENTRY, proxyId(ENTRY, realmId("home-a"), admin));
@@ -184,7 +175,6 @@ class CandidatesIT {
         String realmId = realmId("home-a");
 
         assertNotFound(ENTRY, proxyId(ENTRY, realmId, "f:no-such-component:bob"));
-        // Keycloak cannot parse this one.
         assertNotFound(ENTRY, proxyId(ENTRY, realmId, "f:bob"));
         assertEquals("bob", show(ENTRY, proxyIdOf(ENTRY, "home-a", "bob")).getUsername());
     }

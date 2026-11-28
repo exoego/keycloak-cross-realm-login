@@ -8,12 +8,6 @@ import org.keycloak.models.KeycloakSessionFactory;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.provider.ProviderConfigurationBuilder;
 
-/**
- * Setting:
- * <pre>
- * --spi-cross-realm-login--default--excluded-realm-ids=&lt;realm id&gt;,&lt;realm id&gt;
- * </pre>
- */
 public class DefaultCandidateLookupFactory implements CandidateLookupFactory {
 
     public static final String ID = "default";
@@ -22,7 +16,6 @@ public class DefaultCandidateLookupFactory implements CandidateLookupFactory {
 
     private Settings settings = Settings.of(null);
 
-    /** Keycloak creates the factory through {@link java.util.ServiceLoader}. */
     public DefaultCandidateLookupFactory() {
     }
 

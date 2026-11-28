@@ -10,7 +10,6 @@ import org.keycloak.storage.StorageId;
 import org.keycloak.storage.UserStorageProvider;
 import org.keycloak.storage.user.UserLookupProvider;
 
-/** Shows the users of the home realms in the entry realm. It finds a user by ID only. */
 final class CrossRealmUserStorageProvider implements UserStorageProvider, UserLookupProvider {
 
     private final KeycloakSession session;
@@ -36,7 +35,6 @@ final class CrossRealmUserStorageProvider implements UserStorageProvider, UserLo
                 () -> new CrossRealmUser(session, realm, component, home.get(), candidate.get().user()));
     }
 
-    // Several users can have one name. Only the authenticator picks one, after the password matched.
     @Override
     public UserModel getUserByUsername(RealmModel realm, String username) {
         return null;

@@ -18,7 +18,6 @@ java {
 
 tasks.withType<JavaCompile>().configureEach {
     options.release.set(21)
-    // Every warning of the compiler and of Error Prone fails the build.
     options.compilerArgs.addAll(listOf("-Xlint:all", "-Werror"))
 }
 
@@ -36,7 +35,6 @@ jacoco {
     toolVersion = libs.versions.jacoco.get()
 }
 
-// The JaCoCo agent for the JVM of Keycloak.
 val jacocoContainerAgent = configurations.create("jacocoContainerAgent")
 
 dependencies {
@@ -49,7 +47,6 @@ dependencies {
     testImplementation(libs.archunit)
 }
 
-// An empty value, as from a CI matrix row without it, means the version of the catalog.
 val testKeycloakVersion = providers.gradleProperty("testKeycloakVersion")
     .filter { it.isNotBlank() }
     .orElse(libs.versions.keycloak)
@@ -57,7 +54,6 @@ val testKeycloakVersion = providers.gradleProperty("testKeycloakVersion")
 val keycloakImage = testKeycloakVersion.map { "quay.io/keycloak/keycloak:$it" }
 val postgresImage = libs.versions.postgres.image.map { "postgres:$it" }
 
-// CI pulls these images in the background while it compiles.
 tasks.register("printTestImages") {
     val images = keycloakImage.zip(postgresImage) { keycloak, postgres -> listOf(keycloak, postgres) }
     doLast {
@@ -65,13 +61,11 @@ tasks.register("printTestImages") {
     }
 }
 
-// The CLI of Playwright is in the same jar as its API.
 val playwrightCli = configurations.create("playwrightCli")
 dependencies {
     playwrightCli(libs.playwright)
 }
 
-// Quick when the browser is already there. The CI workflow sets playwrightDeps to install the system libraries too.
 val installBrowser = tasks.register<JavaExec>("installBrowser") {
     classpath = playwrightCli
     mainClass.set("com.microsoft.playwright.CLI")
@@ -101,21 +95,15 @@ testing {
             }
             targets.all {
                 testTask.configure {
-                    // The tests run the jar, so a new jar must run them again.
                     inputs.files(tasks.jar)
                     systemProperty("keycloak.version", testKeycloakVersion.get())
                     systemProperty("keycloak.image", keycloakImage.get())
                     systemProperty("postgres.image", postgresImage.get())
-                    // The installBrowser task is the one place that downloads the browser.
                     environment("PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD", "1")
                     dependsOn(installBrowser)
-                    // Shows the browser window while debugging. Run with -Pheaded.
                     systemProperty("browser.headed", providers.gradleProperty("headed").isPresent)
                     systemProperty("provider.jar", tasks.jar.get().archiveFile.get().asFile.absolutePath)
-                    // A hung container call must fail the build, not block it.
-                    // The CI jobs that run the tests have a longer limit, so this one fails first and the report shows why.
                     timeout.set(Duration.ofMinutes(30))
-                    // The provider runs in the JVM of Keycloak, so the JaCoCo agent goes into that container.
                     val agent = jacocoContainerAgent
                     val coverageDir = layout.buildDirectory.dir("jacoco/keycloak")
                     val loadedClasses = layout.buildDirectory.dir("jacoco-classes/keycloak")
@@ -123,7 +111,6 @@ testing {
                     outputs.dir(coverageDir)
                     outputs.dir(loadedClasses)
                     doFirst {
-                        // A rerun must not append to old data.
                         for (dir in listOf(coverageDir, loadedClasses)) {
                             dir.get().asFile.deleteRecursively()
                             dir.get().asFile.mkdirs()
@@ -143,7 +130,6 @@ tasks.check {
     dependsOn(testing.suites.named("integrationTest"))
 }
 
-// The tests run on this JDK. The compiler stays on JDK 21.
 val testJavaVersion = providers.gradleProperty("testJavaVersion").orElse("21")
 tasks.withType<Test>().configureEach {
     javaLauncher.set(javaToolchains.launcherFor {
@@ -151,12 +137,8 @@ tasks.withType<Test>().configureEach {
     })
 }
 
-// One report for the unit tests and for the integration tests.
-// The second part comes out of the Keycloak container, where the provider really runs.
 val coverageData = fileTree(layout.buildDirectory.dir("jacoco")) { include("**/*.exec") }
 
-// Keycloak can rewrite a class when it builds the server. Coverage data fits only the class it was
-// measured on, so the report takes each class as Keycloak loaded it, and the compiled class otherwise.
 val coverageClasses = tasks.register("coverageClasses") {
     mustRunAfter(tasks.named("integrationTest"))
     val compiled = sourceSets.main.get().output.classesDirs
@@ -169,8 +151,6 @@ val coverageClasses = tasks.register("coverageClasses") {
         val out = target.get().asFile
         out.deleteRecursively()
         compiled.forEach { dir -> if (dir.exists()) dir.copyRecursively(out, overwrite = true) }
-        // The agent names a file "Name.<id>.class". The same class can be written twice, as compiled
-        // and as rewritten. The rewritten one is the one that ran.
         val dumped = Regex("""(.+)\.[0-9a-f]{16}\.class""")
         val root = loaded.get().asFile
         root.walkTopDown().filter { it.isFile }.forEach { file ->
@@ -201,7 +181,6 @@ tasks.check {
     dependsOn(tasks.jacocoTestReport)
 }
 
-// The Keycloak libraries must stay out of the jar that users install.
 val checkMainJar = tasks.register("checkMainJar") {
     val jar = tasks.jar.flatMap { it.archiveFile }
     inputs.file(jar)

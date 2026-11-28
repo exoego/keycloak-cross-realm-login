@@ -23,17 +23,12 @@ import org.keycloak.services.validation.Validation;
 
 final class DefaultCandidateLookup implements CandidateLookup {
 
-    // The join lets the database probe the unique index on (REALM_ID, USERNAME) once for each realm.
-    // USER_ENTITY has no index on USERNAME alone.
     private static final String BY_USERNAME = "select u.realmId, u.id, u.username from UserEntity u, RealmEntity r"
             + " where u.realmId = r.id and u.username = :identifier and u.serviceAccountClientLink is null";
-    // IDX_USER_EMAIL serves this one. The verified flag and the service account link are read here, not filtered,
-    // because a direct login picks the user by email first, whoever it is.
     private static final String BY_EMAIL = "select u.realmId, u.id, u.email, u.emailVerified, u.serviceAccountClientLink"
             + " from UserEntity u, RealmEntity r"
             + " where u.realmId = r.id and u.email = :identifier"
             + " and r.loginWithEmailAllowed = true";
-    // The excluded IDs always hold the entry realm, so the list is never empty.
     private static final String SEARCHED_REALM = " and r.enabled = true and r.name <> :master"
             + " and r.id not in :excludedIds";
 
@@ -74,8 +69,6 @@ final class DefaultCandidateLookup implements CandidateLookup {
         return List.copyOf(candidates);
     }
 
-    // Returns the user of one realm that a direct login picks, or null when that user is no candidate.
-    // Keycloak looks for the email address first, and for the username only when no user has that address.
     static String match(String value, List<Object[]> byEmail, List<Object[]> byUsername) {
         // Keycloak compares again in Java, because a collation can ignore accents and match more.
         String named = byUsername != null && value.equalsIgnoreCase((String) byUsername.get(0)[2])
@@ -83,7 +76,6 @@ final class DefaultCandidateLookup implements CandidateLookup {
         if (byEmail == null) {
             return named;
         }
-        // Two users with one address is a failure of a direct login too.
         if (byEmail.size() != 1) {
             return null;
         }
@@ -94,7 +86,6 @@ final class DefaultCandidateLookup implements CandidateLookup {
         String userId = (String) row[1];
         boolean verified = Boolean.TRUE.equals(row[3]);
         boolean serviceAccount = row[4] != null;
-        // A user matches by its own username, so that username needs no verified address.
         return !serviceAccount && (verified || userId.equals(named)) ? userId : null;
     }
 
@@ -131,14 +122,11 @@ final class DefaultCandidateLookup implements CandidateLookup {
         return ids;
     }
 
-    // Keycloak 26.8.0 returns a user that the session already loaded for any realm.
-    // Keycloak also sends an ID that starts with "f:" to a user federation, and fails on a malformed one.
     private boolean isStoredIn(RealmModel realm, String userId) {
         UserEntity user = entityManager().find(UserEntity.class, userId);
         return user != null && realm.getId().equals(user.getRealmId());
     }
 
-    // Keycloak reads rules for the user, such as a disabled organization, from the context realm.
     private UserModel loadUser(RealmModel realm, String userId) {
         return HomeRealmContext.call(session, realm, () -> session.users().getUserById(realm, userId));
     }

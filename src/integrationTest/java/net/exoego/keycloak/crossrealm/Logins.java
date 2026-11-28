@@ -9,7 +9,6 @@ import static net.exoego.keycloak.crossrealm.KeycloakEnvironment.ADMIN;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Logs in at an entry realm in a new browser, and names the proxy users of an entry realm. */
 final class Logins {
 
     static final String CLIENT = "entry-client";
@@ -27,7 +26,6 @@ final class Logins {
         }
     }
 
-    /** The login ends on the login form with the error for a wrong user or password. */
     static void assertRejected(String realm, String identifier, String password) {
         try (Browser browser = new Browser()) {
             assertRejected(browser.login(realm, CLIENT, identifier, password));

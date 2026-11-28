@@ -6,7 +6,6 @@ on:
   push:
     branches: [ main ]
   pull_request:
-  # New CodeQL queries find problems in code that did not change.
   schedule:
     - cron: '23 3 * * 1'
 
@@ -26,7 +25,6 @@ jobs:
         with:
           persist-credentials: false
 
-      # The release of jactionlint is immutable, so pinning the action also pins the binary it downloads.
       - uses: jdx/jactionlint@72c00452809bcca05b8bc12acdcf15dd7a9c1c5e # v2.6.0
 
   codeql:
@@ -35,7 +33,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      # To upload the results to code scanning.
       security-events: write
     strategy:
       fail-fast: false
@@ -48,7 +45,6 @@ jobs:
         with:
           persist-credentials: false
 
-      # Without a build, no code of this repository runs in the job.
       - uses: github/codeql-action/init@915412ff23e8b7659517e607487dbeae018f2934 # v4.39.5
         with:
           languages: ${{ matrix.language }}
@@ -59,8 +55,7 @@ jobs:
         with:
           category: /language:${{ matrix.language }}
 
-  # The one check of this workflow that branch protection requires. Its name does not change
-  # when a job above changes. A new job of this workflow must be added to "needs".
+  # A new job of this workflow must be added to "needs".
   gate:
     name: Lint gate
     timeout-minutes: 5

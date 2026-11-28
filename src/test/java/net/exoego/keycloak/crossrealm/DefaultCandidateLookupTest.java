@@ -17,7 +17,6 @@ class DefaultCandidateLookupTest {
 
     @Test
     void failsWithoutAnEntryRealm() {
-        // The message tells this check from a failure further down, where the session is null.
         assertEquals("entryRealm",
                 assertThrows(NullPointerException.class, () -> lookup.findByIdentifier(null, "alice")).getMessage());
         assertEquals("entryRealm",
@@ -36,7 +35,6 @@ class DefaultCandidateLookupTest {
 
     @Test
     void comparesTheRowsAgainAsKeycloakDoes() {
-        // MySQL and MariaDB ignore accents when they compare, so the queries return such rows.
         List<Object[]> named = row("realm", "a", "rene@example.com");
         List<Object[]> withAccent = row("realm", "b", "ren\u00e9@example.com", true, null);
 
@@ -50,7 +48,6 @@ class DefaultCandidateLookupTest {
         return Collections.singletonList(columns);
     }
 
-    // The lookup reads the entry realm right before it searches.
     private static RealmModel realmThatFailsWhenRead() {
         return (RealmModel) Proxy.newProxyInstance(RealmModel.class.getClassLoader(), new Class<?>[] {RealmModel.class},
                 (proxy, method, args) -> {

@@ -30,7 +30,6 @@ import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.storage.StorageId;
 import org.keycloak.storage.UserStorageProvider;
 
-/** Checks the password against the candidates of the identifier. */
 final class CrossRealmPasswordAuthenticator implements Authenticator {
 
     private static final Logger LOG = Logger.getLogger(CrossRealmPasswordAuthenticator.class);
@@ -80,7 +79,6 @@ final class CrossRealmPasswordAuthenticator implements Authenticator {
         session.setAuthNote(PendingMatches.NOTE, new PendingMatches(sorted.stream()
                 .map(match -> new HomeUserId(match.realm().getId(), match.user().getId()))
                 .toList()).encode());
-        // The theme shows the identifier and the link to start again for these notes.
         session.setAuthNote(AbstractUsernameFormAuthenticator.ATTEMPTED_USERNAME, identifier);
         session.setAuthNote(AbstractUsernameFormAuthenticator.USERNAME_HIDDEN, "true");
         context.challenge(context.form()
@@ -148,7 +146,6 @@ final class CrossRealmPasswordAuthenticator implements Authenticator {
     }
 
     private static boolean matches(KeycloakSession session, Candidate candidate, String password) {
-        // Keycloak reads rules of the user, such as organizations, from the context realm.
         return HomeRealmContext.call(session, candidate.realm(), () -> {
             UserModel user = candidate.user();
             boolean valid = user.credentialManager().isValid(UserCredentialModel.password(password));
@@ -175,7 +172,6 @@ final class CrossRealmPasswordAuthenticator implements Authenticator {
         return context.getSession().users().getUserById(realm, StorageId.keycloakId(component, home.externalId()));
     }
 
-    // Keycloak logs a failed authentication as a warning only.
     private static IllegalStateException misconfigured(RealmModel realm) {
         String message = "The realm " + realm.getName() + " has no user storage of the provider "
                 + CrossRealmUserStorageProviderFactory.ID;

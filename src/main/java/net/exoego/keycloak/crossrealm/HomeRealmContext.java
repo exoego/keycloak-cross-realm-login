@@ -7,21 +7,11 @@ import org.keycloak.models.KeycloakContext;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 
-/**
- * The only place that sets the context realm.
- * Some parts of Keycloak read the context realm and not the realm of the user.
- * An architecture test fails when another class of the main code uses {@code KeycloakContext.setRealm}.
- */
 final class HomeRealmContext {
 
     private HomeRealmContext() {
     }
 
-    /**
-     * Runs the block with the home realm as the context realm.
-     * The old realm is back afterwards, also when the block throws.
-     * Calls can be nested.
-     */
     static <T> T call(KeycloakSession session, RealmModel homeRealm, Supplier<T> block) {
         Objects.requireNonNull(session, "session");
         Objects.requireNonNull(homeRealm, "homeRealm");

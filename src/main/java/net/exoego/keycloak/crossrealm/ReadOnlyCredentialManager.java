@@ -8,11 +8,6 @@ import org.keycloak.credential.CredentialModel;
 import org.keycloak.models.SubjectCredentialManager;
 import org.keycloak.storage.ReadOnlyException;
 
-/**
- * A user without credentials. Every write fails.
- * The manager of Keycloak would write the credential to the federated storage of the entry realm.
- */
-// The interface still requires three deprecated methods.
 @SuppressWarnings("deprecation")
 final class ReadOnlyCredentialManager implements SubjectCredentialManager {
 

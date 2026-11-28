@@ -10,7 +10,6 @@ import static net.exoego.keycloak.crossrealm.KeycloakEnvironment.POSTGRES;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Reads the database of Keycloak. It runs SELECT only. */
 final class Database {
 
     private Database() {
@@ -20,7 +19,6 @@ final class Database {
         return Integer.parseInt(query("select count(*) from " + table + " where " + where).get(0));
     }
 
-    // Counts the rows of the user and credential tables that could hold a proxy user, and of every fed_user_ table.
     static final String STORED_FOR_ENTRY_REALM = """
             select
               (select count(*) from user_entity where realm_id = '%1$s' or id like 'f:%%')
@@ -34,7 +32,6 @@ final class Database {
             where table_type = 'BASE TABLE' and table_name like 'fed\\_user\\_%%'
             """;
 
-    /** Fails when the entry realm stores a user or a credential of a proxy user, in one call to psql. */
     static void assertNothingStoredFor(String entryRealmId) {
         String row = query(STORED_FOR_ENTRY_REALM.formatted(entryRealmId)).get(0);
         int separator = row.indexOf('|');

@@ -10,11 +10,6 @@ import org.keycloak.common.util.MultivaluedHashMap;
 import org.keycloak.representations.idm.ComponentExportRepresentation;
 import org.keycloak.representations.idm.RealmRepresentation;
 
-/**
- * Gives a temporary realm the keys that Keycloak would generate for a new realm.
- * Generating a 2048-bit RSA key pair is the most expensive step of creating a realm.
- * All temporary realms share one pair that the test JVM generates, so no key is stored in the repository.
- */
 final class SharedRealmKeys {
 
     private static final String KEY_PROVIDER = "org.keycloak.keys.KeyProvider";
@@ -37,7 +32,6 @@ final class SharedRealmKeys {
     private SharedRealmKeys() {
     }
 
-    /** Adds the key providers. Keycloak adds its default ones only when a realm has none. */
     static void addTo(RealmRepresentation rep) {
         MultivaluedHashMap<String, ComponentExportRepresentation> components = rep.getComponents();
         if (components == null) {
