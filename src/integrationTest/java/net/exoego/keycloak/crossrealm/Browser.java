@@ -18,11 +18,10 @@ import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.microsoft.playwright.BrowserContext;
-import com.microsoft.playwright.CDPSession;
 import com.microsoft.playwright.BrowserType;
+import com.microsoft.playwright.CDPSession;
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
@@ -95,12 +94,6 @@ final class Browser implements AutoCloseable {
         return result();
     }
 
-    LoginResult openLoginPage(String realm, String clientId) {
-        open(realm, clientId);
-        waitForEnd(LOGIN_FORM + ", " + STEP_END_SELECTOR);
-        return result();
-    }
-
     LoginResult loginWithPasskey(String realm, String clientId) {
         open(realm, clientId);
         waitForEnd(LOGIN_FORM + ", " + STEP_END_SELECTOR);
@@ -115,7 +108,7 @@ final class Browser implements AutoCloseable {
         context.clearCookies();
     }
 
-    VirtualAuthenticator addVirtualAuthenticator() {
+    void addVirtualAuthenticator() {
         CDPSession session = context.newCDPSession(page);
         session.send("WebAuthn.enable");
         JsonObject options = new JsonObject();
@@ -127,26 +120,7 @@ final class Browser implements AutoCloseable {
         options.addProperty("automaticPresenceSimulation", true);
         JsonObject params = new JsonObject();
         params.add("options", options);
-        String id = session.send("WebAuthn.addVirtualAuthenticator", params).get("authenticatorId").getAsString();
-        return new VirtualAuthenticator(session, id);
-    }
-
-    static final class VirtualAuthenticator {
-
-        private final CDPSession session;
-        private final String id;
-
-        private VirtualAuthenticator(CDPSession session, String id) {
-            this.session = session;
-            this.id = id;
-        }
-
-        List<JsonObject> credentials() {
-            JsonObject params = new JsonObject();
-            params.addProperty("authenticatorId", id);
-            JsonArray credentials = session.send("WebAuthn.getCredentials", params).getAsJsonArray("credentials");
-            return credentials.asList().stream().map(JsonObject.class::cast).toList();
-        }
+        session.send("WebAuthn.addVirtualAuthenticator", params);
     }
 
     LoginResult loginWithoutUsername(String realm, String clientId, String password) {
