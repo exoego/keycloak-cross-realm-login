@@ -5,7 +5,7 @@ import java.util.List;
 import org.keycloak.admin.client.resource.RealmResource;
 import org.keycloak.representations.idm.UserRepresentation;
 
-import static net.exoego.keycloak.crossrealm.KeycloakEnvironment.KEYCLOAK;
+import static net.exoego.keycloak.crossrealm.KeycloakEnvironment.ADMIN;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -48,20 +48,20 @@ final class Logins {
     }
 
     static String userId(String realm, String username) {
-        List<UserRepresentation> users = KEYCLOAK.getKeycloakAdminClient().realm(realm).users()
+        List<UserRepresentation> users = ADMIN.realm(realm).users()
                 .searchByUsername(username, true);
         assertEquals(1, users.size());
         return users.get(0).getId();
     }
 
     static String componentId(String entryRealm) {
-        RealmResource entry = KEYCLOAK.getKeycloakAdminClient().realm(entryRealm);
+        RealmResource entry = ADMIN.realm(entryRealm);
         return entry.components().query(realmId(entryRealm), USER_STORAGE).stream()
                 .filter(component -> STORAGE_ID.equals(component.getProviderId()))
                 .findFirst().orElseThrow().getId();
     }
 
     static String realmId(String realm) {
-        return KEYCLOAK.getKeycloakAdminClient().realm(realm).toRepresentation().getId();
+        return ADMIN.realm(realm).toRepresentation().getId();
     }
 }

@@ -12,6 +12,7 @@ import org.keycloak.representations.idm.CredentialRepresentation;
 import org.keycloak.representations.idm.RealmRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
 
+import static net.exoego.keycloak.crossrealm.KeycloakEnvironment.ADMIN;
 import static net.exoego.keycloak.crossrealm.KeycloakEnvironment.KEYCLOAK;
 import static net.exoego.keycloak.crossrealm.Logins.CLIENT;
 import static net.exoego.keycloak.crossrealm.Logins.STORAGE_ID;
@@ -110,7 +111,7 @@ class PasswordLoginIT {
     @Test
     void theEntryRealmListsNoUser() throws Exception {
         loginAtEntry("alice", "alice-password-a");
-        RealmResource entry = KEYCLOAK.getKeycloakAdminClient().realm(ENTRY);
+        RealmResource entry = ADMIN.realm(ENTRY);
 
         assertEquals(List.of(), entry.users().list());
         assertEquals(0, entry.users().count());
@@ -134,7 +135,7 @@ class PasswordLoginIT {
     void theAdminApiShowsTheProfileOfTheHomeUser() throws Exception {
         String proxyId = loginAtEntry("alice", "alice-password-a").subject();
 
-        UserRepresentation user = KEYCLOAK.getKeycloakAdminClient().realm(ENTRY).users().get(proxyId).toRepresentation();
+        UserRepresentation user = ADMIN.realm(ENTRY).users().get(proxyId).toRepresentation();
 
         assertEquals("alice", user.getUsername());
         assertEquals("alice@home-a.example.com", user.getEmail());
@@ -146,7 +147,7 @@ class PasswordLoginIT {
     void theEntryRealmListsNoCredentialOfTheUser() throws Exception {
         String proxyId = loginAtEntry("alice", "alice-password-a").subject();
 
-        assertEquals(List.of(), KEYCLOAK.getKeycloakAdminClient().realm(ENTRY).users().get(proxyId).credentials());
+        assertEquals(List.of(), ADMIN.realm(ENTRY).users().get(proxyId).credentials());
     }
 
     @Test
@@ -156,7 +157,7 @@ class PasswordLoginIT {
         credential.setType(CredentialRepresentation.PASSWORD);
         credential.setValue("new-password");
         credential.setTemporary(false);
-        UserResource user = KEYCLOAK.getKeycloakAdminClient().realm(ENTRY).users().get(proxyId);
+        UserResource user = ADMIN.realm(ENTRY).users().get(proxyId);
 
         assertThrows(WebApplicationException.class, () -> user.resetPassword(credential));
 
@@ -258,7 +259,7 @@ class PasswordLoginIT {
 
     @Test
     void keycloakListsTheProviders() {
-        var info = KEYCLOAK.getKeycloakAdminClient().serverInfo().getInfo();
+        var info = ADMIN.serverInfo().getInfo();
 
         assertTrue(info.getProviders().get("authenticator").getProviders()
                 .containsKey(AUTHENTICATOR_ID));

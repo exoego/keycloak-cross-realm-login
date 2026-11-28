@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.keycloak.admin.client.resource.RealmResource;
 import org.keycloak.representations.idm.UserRepresentation;
 
+import static net.exoego.keycloak.crossrealm.KeycloakEnvironment.ADMIN;
 import static net.exoego.keycloak.crossrealm.KeycloakEnvironment.EXCLUDED_REALM_ID;
 import static net.exoego.keycloak.crossrealm.KeycloakEnvironment.KEYCLOAK;
 import static net.exoego.keycloak.crossrealm.Logins.CLIENT;
@@ -240,6 +241,6 @@ class CandidatesIT {
     }
 
     private static RealmResource realm(String name) {
-        return KEYCLOAK.getKeycloakAdminClient().realm(name);
+        return ADMIN.realm(name);
     }
 }

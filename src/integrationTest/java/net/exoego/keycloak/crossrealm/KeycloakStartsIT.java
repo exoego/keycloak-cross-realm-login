@@ -7,6 +7,7 @@ import java.net.http.HttpResponse;
 
 import org.junit.jupiter.api.Test;
 
+import static net.exoego.keycloak.crossrealm.KeycloakEnvironment.ADMIN;
 import static net.exoego.keycloak.crossrealm.KeycloakEnvironment.KEYCLOAK;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -38,7 +39,7 @@ class KeycloakStartsIT {
 
     @Test
     void runsTheRequestedVersion() {
-        String running = KEYCLOAK.getKeycloakAdminClient().serverInfo().getInfo().getSystemInfo().getVersion();
+        String running = ADMIN.serverInfo().getInfo().getSystemInfo().getVersion();
         assertEquals(KeycloakEnvironment.KEYCLOAK_VERSION, running);
     }
 }

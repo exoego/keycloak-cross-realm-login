@@ -5,6 +5,9 @@ import java.util.List;
 import java.util.Map;
 
 import dasniko.testcontainers.keycloak.KeycloakContainer;
+import org.keycloak.admin.client.Keycloak;
+import org.keycloak.admin.client.KeycloakBuilder;
+import org.keycloak.admin.client.spi.ResteasyClientClassicProvider;
 import org.testcontainers.containers.Network;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
@@ -44,9 +47,25 @@ final class KeycloakEnvironment {
             .withEnv("KC_DB_USERNAME", "keycloak")
             .withEnv("KC_DB_PASSWORD", "keycloak");
 
+    /** One admin client for all tests. It logs in once and refreshes its token as needed. */
+    static final Keycloak ADMIN;
+
     static {
         POSTGRES.start();
         KEYCLOAK.start();
+        // The default pool allows 2 connections to a host, so the parallel tests would queue.
+        ADMIN = KeycloakBuilder.builder()
+                .serverUrl(KEYCLOAK.getAuthServerUrl())
+                .realm("master")
+                .clientId("admin-cli")
+                .username(KEYCLOAK.getAdminUsername())
+                .password(KEYCLOAK.getAdminPassword())
+                .resteasyClient(ResteasyClientClassicProvider.createClientBuilder()
+                        .connectionPoolSize(32)
+                        .maxPooledPerRoute(32)
+                        .build())
+                .build();
+        Runtime.getRuntime().addShutdownHook(new Thread(ADMIN::close));
         // Testcontainers kills the container after the JVM exits, so the data is read before that.
         // The hook also runs when a test fails.
         Runtime.getRuntime().addShutdownHook(new Thread(() -> Coverage.save(KEYCLOAK)));
