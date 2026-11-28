@@ -47,6 +47,7 @@ final class Browser implements AutoCloseable {
             .build();
     private final BrowserContext context;
     private final Page page;
+    private final AutoCloseable owner;
 
     Browser() {
         this(Chromium.get().newContext());
@@ -57,8 +58,25 @@ final class Browser implements AutoCloseable {
     }
 
     private Browser(BrowserContext context) {
+        this(context, () -> { });
+    }
+
+    private Browser(BrowserContext context, AutoCloseable owner) {
         this.context = context;
         this.page = context.newPage();
+        this.owner = owner;
+    }
+
+    static Browser withChooser() {
+        Playwright playwright = Playwright.create();
+        try {
+            com.microsoft.playwright.Browser chromium = playwright.chromium()
+                    .launch(new BrowserType.LaunchOptions().setHeadless(false));
+            return new Browser(chromium.newContext(), playwright);
+        } catch (RuntimeException e) {
+            playwright.close();
+            throw e;
+        }
     }
 
     void open(String realm, String clientId) {
@@ -113,13 +131,31 @@ final class Browser implements AutoCloseable {
         return result();
     }
 
+    LoginResult loginWithPasskeyChooser(String realm, String clientId, Runnable keys) {
+        open(realm, clientId);
+        waitForEnd(LOGIN_FORM + ", " + STEP_END_SELECTOR);
+        page.waitForLoadState(LoadState.DOMCONTENTLOADED);
+        markPage();
+        page.locator(PASSKEY_BUTTON).click();
+        OsKeys.waitForChooser();
+        keys.run();
+        waitForEnd(STEP_END_SELECTOR);
+        return result();
+    }
+
     void clearCookies() {
         context.clearCookies();
     }
 
     VirtualAuthenticator addVirtualAuthenticator() {
+        return addVirtualAuthenticator(false);
+    }
+
+    VirtualAuthenticator addVirtualAuthenticator(boolean enableUi) {
         CDPSession session = context.newCDPSession(page);
-        session.send("WebAuthn.enable");
+        JsonObject enable = new JsonObject();
+        enable.addProperty("enableUI", enableUi);
+        session.send("WebAuthn.enable", enable);
         JsonObject options = new JsonObject();
         options.addProperty("protocol", "ctap2");
         options.addProperty("transport", "internal");
@@ -308,6 +344,11 @@ final class Browser implements AutoCloseable {
     @Override
     public void close() {
         context.close();
+        try {
+            owner.close();
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     private void open(String realm, String clientId, String extraQuery) {

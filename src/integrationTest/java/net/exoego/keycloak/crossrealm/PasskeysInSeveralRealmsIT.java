@@ -1,11 +1,15 @@
 package net.exoego.keycloak.crossrealm;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import com.google.gson.JsonObject;
 import jakarta.ws.rs.core.Response;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
+import org.junit.jupiter.api.parallel.ResourceLock;
 import org.keycloak.representations.idm.PartialImportRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
 
@@ -43,6 +47,36 @@ class PasskeysInSeveralRealmsIT {
                     loginWithout(browser, authenticator, entry, secondCredential));
             assertEquals(proxyId(entry.name(), second.id(), secondUserId),
                     loginWithout(browser, authenticator, entry, firstCredential));
+        }
+    }
+
+    @Test
+    @EnabledIfSystemProperty(named = "browser.chooser", matches = "true")
+    @ResourceLock("os-keyboard")
+    void theChooserOfChromeLetsThePersonPickEachPasskey() throws Exception {
+        try (TempEntryRealm entry = TempEntryRealm.withUserStorage(); TempRealm first = new TempRealm();
+                TempRealm second = new TempRealm(); Browser registering = new Browser();
+                Browser browser = Browser.withChooser()) {
+            entry.allowPasskeys();
+            VirtualAuthenticator source = registering.addVirtualAuthenticator();
+            String firstUserId = registerPasskey(first, registering);
+            String secondUserId = registerPasskey(second, registering);
+            VirtualAuthenticator authenticator = browser.addVirtualAuthenticator(true);
+            for (JsonObject credential : source.credentials()) {
+                authenticator.add(credential);
+            }
+
+            String picked = browser.exchange(entry.name(), CLIENT,
+                    browser.loginWithPasskeyChooser(entry.name(), CLIENT, OsKeys::enter).code()).subject();
+            browser.clearCookies();
+            String pickedNext = browser.exchange(entry.name(), CLIENT,
+                    browser.loginWithPasskeyChooser(entry.name(), CLIENT, () -> {
+                        OsKeys.next();
+                        OsKeys.enter();
+                    }).code()).subject();
+
+            assertEquals(Set.of(proxyId(entry.name(), first.id(), firstUserId),
+                    proxyId(entry.name(), second.id(), secondUserId)), new HashSet<>(List.of(picked, pickedNext)));
         }
     }
 

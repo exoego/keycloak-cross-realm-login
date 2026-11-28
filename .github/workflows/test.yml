@@ -28,6 +28,9 @@ jobs:
           - ''
         include:
           - java: 21
+            keycloak: ''
+            chooser: true
+          - java: 21
             keycloak: 26.8.0
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -45,8 +48,12 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
 
+      - name: Install the display tools
+        if: matrix.chooser
+        run: sudo apt-get install -y xvfb xdotool
+
       - name: Install the browser
-        run: ./gradlew installBrowser -PplaywrightDeps
+        run: ./gradlew installBrowser -PplaywrightDeps ${{ matrix.chooser && '-Pchooser' || '' }}
 
       - name: Pull the images in the background
         env:
@@ -58,7 +65,7 @@ jobs:
       - name: Run Tests
         env:
           KEYCLOAK_VERSION: ${{ matrix.keycloak }}
-        run: ./gradlew check -PtestJavaVersion=${{ matrix.java }} -PtestKeycloakVersion="$KEYCLOAK_VERSION"
+        run: ${{ matrix.chooser && 'xvfb-run -a ' || '' }}./gradlew check -PtestJavaVersion=${{ matrix.java }} -PtestKeycloakVersion="$KEYCLOAK_VERSION" ${{ matrix.chooser && '-Pchooser' || '' }}
 
       - name: Upload coverage to Codecov
         if: matrix.java == 21 && matrix.keycloak == ''

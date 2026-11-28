@@ -85,6 +85,10 @@ The extension uses internal APIs of Keycloak. A new minor version of Keycloak ca
 
 The tests run only with PostgreSQL. The other databases of Keycloak may work, and nothing tests them.
 
+## Testing
+
+The test of the passkey chooser of Chrome is off by default. Run it with `./gradlew integrationTest -Pchooser`. On macOS the terminal app needs the accessibility permission, and on Linux it needs `xdotool` and a display.
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).

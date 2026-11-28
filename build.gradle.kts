@@ -69,7 +69,10 @@ dependencies {
 val installBrowser = tasks.register<JavaExec>("installBrowser") {
     classpath = playwrightCli
     mainClass.set("com.microsoft.playwright.CLI")
-    args("install", "--only-shell")
+    args("install")
+    if (!providers.gradleProperty("chooser").isPresent) {
+        args("--only-shell")
+    }
     if (providers.gradleProperty("playwrightDeps").isPresent) {
         args("--with-deps")
     }
@@ -102,6 +105,7 @@ testing {
                     environment("PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD", "1")
                     dependsOn(installBrowser)
                     systemProperty("browser.headed", providers.gradleProperty("headed").isPresent)
+                    systemProperty("browser.chooser", providers.gradleProperty("chooser").isPresent)
                     systemProperty("provider.jar", tasks.jar.get().archiveFile.get().asFile.absolutePath)
                     timeout.set(Duration.ofMinutes(30))
                     val agent = jacocoContainerAgent
