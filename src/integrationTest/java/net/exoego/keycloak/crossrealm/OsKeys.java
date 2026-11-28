@@ -16,7 +16,7 @@ final class OsKeys {
     static void waitForChooser() {
         pause(CHOOSER_WAIT_MILLIS);
         if (System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("linux")) {
-            run(List.of("xdotool", "mousemove", "0", "0"));
+            run(List.of("xdotool", "mousemove", "200", "500"));
             pause(KEY_GAP_MILLIS);
         }
         debug("after-wait");
