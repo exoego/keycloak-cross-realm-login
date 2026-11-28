@@ -131,14 +131,13 @@ final class Browser implements AutoCloseable {
         return result();
     }
 
-    LoginResult loginWithPasskeyChooser(String realm, String clientId, Runnable keys) {
+    LoginResult loginWithPasskeyChooser(String realm, String clientId, String username, int index) {
         open(realm, clientId);
         waitForEnd(LOGIN_FORM + ", " + STEP_END_SELECTOR);
         page.waitForLoadState(LoadState.DOMCONTENTLOADED);
         markPage();
         page.locator(PASSKEY_BUTTON).click();
-        OsKeys.waitForChooser();
-        keys.run();
+        PasskeyChooser.pick(username, index);
         waitForEnd(STEP_END_SELECTOR);
         return result();
     }

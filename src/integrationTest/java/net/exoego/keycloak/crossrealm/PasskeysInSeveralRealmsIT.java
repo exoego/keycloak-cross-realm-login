@@ -67,13 +67,10 @@ class PasskeysInSeveralRealmsIT {
             }
 
             String picked = browser.exchange(entry.name(), CLIENT,
-                    browser.loginWithPasskeyChooser(entry.name(), CLIENT, OsKeys::enter).code()).subject();
+                    browser.loginWithPasskeyChooser(entry.name(), CLIENT, username, 0).code()).subject();
             browser.clearCookies();
             String pickedNext = browser.exchange(entry.name(), CLIENT,
-                    browser.loginWithPasskeyChooser(entry.name(), CLIENT, () -> {
-                        OsKeys.next();
-                        OsKeys.enter();
-                    }).code()).subject();
+                    browser.loginWithPasskeyChooser(entry.name(), CLIENT, username, 1).code()).subject();
 
             assertEquals(Set.of(proxyId(entry.name(), first.id(), firstUserId),
                     proxyId(entry.name(), second.id(), secondUserId)), new HashSet<>(List.of(picked, pickedNext)));
